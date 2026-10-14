@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 10 10 11;
+  --card: 22 22 24;
+  --card2: 32 32 35;
+  --line: 44 44 48;
+  --fg: 245 245 247;
+  --muted: 142 142 150;
+  --accent: 52 211 108;
+  --accentfg: 4 20 10;
+  --warn: 245 166 35;
+  --danger: 255 99 90;
+}
+.light {
+  --bg: 244 245 247;
+  --card: 255 255 255;
+  --card2: 237 238 241;
+  --line: 223 225 230;
+  --fg: 18 18 20;
+  --muted: 104 106 114;
+  --accent: 22 163 74;
+  --accentfg: 255 255 255;
+  --warn: 202 125 0;
+  --danger: 220 52 44;
+}
+
+html { background: rgb(var(--bg)); color-scheme: dark; }
+html.light { color-scheme: light; }
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+/* 16px inputs stop iOS Safari zooming on focus */
+input, select, textarea { font-size: 16px; }
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
