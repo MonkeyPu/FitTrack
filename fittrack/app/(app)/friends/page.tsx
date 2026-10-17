@@ -7,15 +7,14 @@ import { FriendToday } from "@/components/friend-today";
 import { Empty, PageHeader } from "@/components/page-header";
 import { buttonClass } from "@/components/ui/button";
 import { Card, Section } from "@/components/ui/card";
-import { requireProfile, resolveDate } from "@/lib/data";
+import { requireUser, resolveDate } from "@/lib/data";
 import { getFriendCards, getFriendships } from "@/lib/friends";
 import { daysBetween } from "@/lib/dates";
 
 export const metadata = { title: "Friends" };
 
 export default async function Page() {
-  const { supabase } = await requireProfile();
-  const { today } = await resolveDate(undefined);
+  const [{ supabase }, { today }] = await Promise.all([requireUser(), resolveDate(undefined)]);
   const [cards, links] = await Promise.all([getFriendCards(supabase, today), getFriendships(supabase)]);
   const incoming = links.filter((l) => l.status === "pending" && l.incoming);
   const outgoing = links.filter((l) => l.status === "pending" && !l.incoming);

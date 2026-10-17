@@ -2,13 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { removeFriendship } from "@/app/actions/friends";
 import { Avatar } from "@/components/avatar";
-import { CompareChart, type ChartPoint } from "@/components/compare-chart";
+import { CompareChart, type ChartPoint } from "@/components/compare-chart-lazy";
 import { FriendAction } from "@/components/friend-action";
 import { FriendToday } from "@/components/friend-today";
 import { PageHeader } from "@/components/page-header";
 import { ProgressBar } from "@/components/progress";
 import { Card, Section } from "@/components/ui/card";
-import { requireProfile, resolveDate } from "@/lib/data";
+import { requireUser, resolveDate } from "@/lib/data";
 import { getFriendCards, getFriendHistory, getMyHistory } from "@/lib/friends";
 import { addDays, daysBetween } from "@/lib/dates";
 import { average, rangeDates } from "@/lib/history";
@@ -22,19 +22,16 @@ const isUuid = (s: string) => /^[0-9a-f-]{36}$/i.test(s);
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ range?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!isUuid(id)) notFound();
-  const { supabase, user } = await requireProfile();
-  const { today } = await resolveDate(undefined);
-
-  // Returns only accepted friends, so a guessed id gives a 404.
-  const card = (await getFriendCards(supabase, today)).find((c) => c.friend_id === id);
-  if (!card) notFound();
-
+  const [{ supabase, user }, { today }] = await Promise.all([requireUser(), resolveDate(undefined)]);
   const range = sp.range === "30" ? 30 : 7;
   const dates = rangeDates(today, range);
-  const [mine, theirs] = await Promise.all([
-    getMyHistory(supabase, user.id, dates[0], today),
-    card.share_history ? getFriendHistory(supabase, id, dates[0], today) : Promise.resolve(new Map()),
-  ]);
+
+  // Your own history loads while the friend's card does. Only accepted friends are returned,
+  // so a guessed id gives a 404.
+  const [cards, mine] = await Promise.all([getFriendCards(supabase, today), getMyHistory(supabase, user.id, dates[0], today)]);
+  const card = cards.find((c) => c.friend_id === id);
+  if (!card) notFound();
+  const theirs = card.share_history ? await getFriendHistory(supabase, id, dates[0], today) : new Map();
 
   const points = (pick: "food" | "protein"): ChartPoint[] =>
     dates.map((d) => ({ label: label(d), me: mine.get(d)?.[pick] ?? null, friend: theirs.get(d)?.[pick] ?? null }));

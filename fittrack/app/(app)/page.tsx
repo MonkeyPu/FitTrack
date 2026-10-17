@@ -4,7 +4,7 @@ import { DateNav } from "@/components/date-nav";
 import { DayMoments } from "@/components/day-moments";
 import { ProgressBar, ProgressRing, statusText } from "@/components/progress";
 import { Card, Section } from "@/components/ui/card";
-import { getDay, requireProfile, resolveDate } from "@/lib/data";
+import { getDay, requireProfile, requireUser, resolveDate } from "@/lib/data";
 import { summarize, statusOf, targetsOf } from "@/lib/calc";
 import { addDays, daysBetween } from "@/lib/dates";
 import { cn, fmt } from "@/lib/utils";
@@ -13,10 +13,14 @@ export const metadata = { title: "Home" };
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
-  const { supabase, user, profile } = await requireProfile();
-  const { date, today } = await resolveDate(sp.date);
+  const [{ supabase, user }, { date, today }] = await Promise.all([requireUser(), resolveDate(sp.date)]);
   const yDate = addDays(today, -1);
-  const [day, yDay] = await Promise.all([getDay(supabase, user.id, date), date === today ? getDay(supabase, user.id, yDate) : Promise.resolve(null)]);
+  // Profile and both days load at the same time instead of one after another.
+  const [{ profile }, day, yDay] = await Promise.all([
+    requireProfile(),
+    getDay(supabase, user.id, date),
+    date === today ? getDay(supabase, user.id, yDate) : Promise.resolve(null),
+  ]);
   const t = targetsOf(profile);
   const s = summarize(day.foods, day.meals, day.activities, t);
   const ys = yDay ? summarize(yDay.foods, yDay.meals, yDay.activities, t) : null;

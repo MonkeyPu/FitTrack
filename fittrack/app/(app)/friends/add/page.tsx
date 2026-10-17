@@ -6,7 +6,7 @@ import { FriendAction } from "@/components/friend-action";
 import { Empty, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { requireProfile } from "@/lib/data";
+import { requireUser } from "@/lib/data";
 import { getFriendships } from "@/lib/friends";
 
 export const metadata = { title: "Add a friend" };
@@ -15,14 +15,13 @@ type Result = { id: string; username: string; display_name: string; avatar_url: 
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
-  const { supabase } = await requireProfile();
+  const { supabase } = await requireUser();
   const q = (sp.q ?? "").trim().replace(/^@/, "").slice(0, 20);
-  let results: Result[] = [];
-  const links = await getFriendships(supabase);
-  if (q.length >= 2) {
-    const { data } = await supabase.rpc("search_profiles", { q });
-    results = (data ?? []) as Result[];
-  }
+  const [links, found] = await Promise.all([
+    getFriendships(supabase),
+    q.length >= 2 ? supabase.rpc("search_profiles", { q }) : Promise.resolve(null),
+  ]);
+  const results = ((found?.data ?? []) as Result[]);
   const rel = new Map(links.map((l) => [l.other_id, l]));
 
   return (

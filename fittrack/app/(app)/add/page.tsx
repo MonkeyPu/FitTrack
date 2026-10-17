@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { BookmarkPlus, Dumbbell, Library, Utensils } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { requireProfile, resolveDate } from "@/lib/data";
+import { requireUser, resolveDate } from "@/lib/data";
 
 export const metadata = { title: "Add" };
 
 export default async function Add({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
-  await requireProfile();
+  await requireUser();
   const { date, today } = await resolveDate(sp.date);
   const q = date === today ? "" : `?date=${date}`;
   const items = [

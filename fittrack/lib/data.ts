@@ -3,6 +3,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { isDateStr, todayInTz } from "@/lib/dates";
 import type { ActivityLog, FoodLog, MealLog, Profile } from "@/lib/types";
 
@@ -10,7 +11,7 @@ export type Db = Awaited<ReturnType<typeof createClient>>;
 
 export const requireUser = cache(async () => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
   if (!user) redirect("/login");
   return { supabase, user };
 });
