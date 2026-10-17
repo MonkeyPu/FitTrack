@@ -3,7 +3,7 @@ import { DateNav } from "@/components/date-nav";
 import { ActivityEntry, FoodEntry, MealEntry } from "@/components/entries";
 import { Card, Section } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
-import { getDay, requireProfile, resolveDate } from "@/lib/data";
+import { getDay, requireProfile, requireUser, resolveDate } from "@/lib/data";
 import { summarize, targetsOf } from "@/lib/calc";
 import { fmt } from "@/lib/utils";
 
@@ -11,9 +11,8 @@ export const metadata = { title: "Diary" };
 
 export default async function Diary({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
-  const { supabase, user, profile } = await requireProfile();
-  const { date, today, tz } = await resolveDate(sp.date);
-  const day = await getDay(supabase, user.id, date);
+  const [{ supabase, user }, { date, today, tz }] = await Promise.all([requireUser(), resolveDate(sp.date)]);
+  const [{ profile }, day] = await Promise.all([requireProfile(), getDay(supabase, user.id, date)]);
   const s = summarize(day.foods, day.meals, day.activities, targetsOf(profile));
   const q = date === today ? "" : `?date=${date}`;
   const next = `/diary${q}`;

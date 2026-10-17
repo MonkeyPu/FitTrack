@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 import { NextResponse, type NextRequest } from "next/server";
+import { getAuthUser } from "@/lib/supabase/auth";
 
 const PUBLIC = ["/login", "/signup", "/forgot-password", "/auth"];
 const AUTH_ONLY_GUESTS = ["/login", "/signup", "/forgot-password"];
@@ -20,8 +21,8 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Validates the session with Supabase and refreshes cookies when needed.
-  const { data: { user } } = await supabase.auth.getUser();
+  // Checks the session locally and refreshes cookies when the token has expired.
+  const user = await getAuthUser(supabase);
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC.some((p) => path === p || path.startsWith(`${p}/`));
 

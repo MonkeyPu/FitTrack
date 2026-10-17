@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { Empty, PageHeader } from "@/components/page-header";
 import { MealPicker } from "@/components/meal-picker";
-import { requireProfile, resolveDate } from "@/lib/data";
+import { requireUser, resolveDate } from "@/lib/data";
 import type { Meal } from "@/lib/types";
 
 export const metadata = { title: "Add a saved meal" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
-  const { supabase, user } = await requireProfile();
-  const { date, today } = await resolveDate(sp.date);
+  const [{ supabase, user }, { date, today }] = await Promise.all([requireUser(), resolveDate(sp.date)]);
   const { data } = await supabase.from("meals").select("id, name, meal_items(*)").eq("user_id", user.id).order("name");
   const meals = ((data ?? []) as Meal[]).filter((m) => m.meal_items.length > 0);
   return (

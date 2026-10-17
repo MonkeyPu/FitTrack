@@ -1,9 +1,11 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { TzCookie } from "@/components/tz-cookie";
-import { requireUser } from "@/lib/data";
+import { requireProfile } from "@/lib/data";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { supabase, user } = await requireUser();
+  // Sends people who haven't finished onboarding to /onboarding. The layout stays loaded while
+  // moving between tabs, so this runs once per visit rather than on every tap.
+  const { supabase, user } = await requireProfile();
   const { count } = await supabase
     .from("friendships")
     .select("id", { count: "exact", head: true })

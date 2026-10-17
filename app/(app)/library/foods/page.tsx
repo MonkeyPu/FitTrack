@@ -2,14 +2,14 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Empty, PageHeader } from "@/components/page-header";
 import { buttonClass } from "@/components/ui/button";
-import { requireProfile } from "@/lib/data";
+import { requireUser } from "@/lib/data";
 import { fmt } from "@/lib/utils";
 import type { Food } from "@/lib/types";
 
 export const metadata = { title: "Saved foods" };
 
 export default async function Page() {
-  const { supabase, user } = await requireProfile();
+  const { supabase, user } = await requireUser();
   const { data } = await supabase.from("foods").select("*").eq("user_id", user.id).order("name");
   const foods = (data ?? []) as Food[];
   return (
