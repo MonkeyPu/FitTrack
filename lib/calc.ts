@@ -58,6 +58,10 @@ export type DaySummary = {
   exerciseCalories: number;
   /** food calories minus logged exercise calories */
   net: number;
+  /** maintenance minus net calories. Negative means a surplus. Null without a maintenance value. */
+  deficit: number | null;
+  /** maintenance minus the net calorie target, only when that is a real deficit */
+  targetDeficit: number | null;
   foodRemaining: number | null;
   netRemaining: number | null;
   proteinRemaining: number | null;
@@ -84,6 +88,11 @@ export function summarize(
     protein,
     exerciseCalories,
     net,
+    deficit: hasTarget(targets.maintenance) ? targets.maintenance - net : null,
+    targetDeficit:
+      hasTarget(targets.maintenance) && hasTarget(targets.netTarget) && targets.maintenance > targets.netTarget
+        ? targets.maintenance - targets.netTarget
+        : null,
     foodRemaining: remaining(targets.maxFood, foodCalories),
     netRemaining: remaining(targets.netTarget, net),
     proteinRemaining: remaining(targets.protein, protein),

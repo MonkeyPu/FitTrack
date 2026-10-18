@@ -16,7 +16,9 @@ function Confetti() {
     const dpr = window.devicePixelRatio || 1;
     const w = (canvas.width = window.innerWidth * dpr);
     const h = (canvas.height = window.innerHeight * dpr);
-    const colors = ["#34d36c", "#f5f5f7", "#f5a623", "#6ee7a0", "#ffd166"];
+    const raw = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim().split(/\s+/).join(",");
+    const accent = raw ? `rgb(${raw})` : "#34d36c";
+    const colors = [accent, "#f5f5f7", "#f5a623", accent, "#ffd166"];
     const bits = Array.from({ length: 140 }, () => ({
       x: Math.random() * w, y: -Math.random() * h * 0.6, vx: (Math.random() - 0.5) * 3 * dpr, vy: (2 + Math.random() * 4) * dpr,
       s: (6 + Math.random() * 6) * dpr, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, c: colors[Math.floor(Math.random() * colors.length)],

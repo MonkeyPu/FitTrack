@@ -1,7 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
 import { changePassword } from "@/app/actions/auth";
-import { changeEmail, deleteAccount, updateAccount, updateGoal, updatePreferences, updatePrivacy, updateTargets } from "@/app/actions/profile";
+import { changeEmail, deleteAccount, updateAccount, updateGoal, updatePrivacy, updateTargets } from "@/app/actions/profile";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
@@ -93,19 +93,6 @@ export function PrivacyForm({ profile }: { profile: Profile }) {
         <Toggle name="share_goal" label="Overall goal" hint="Your goal and target date" defaultChecked={p.share_goal} />
       </div>
       <div className="mt-3 space-y-3"><FormMessage state={state} /><SubmitButton className="w-full">Save privacy</SubmitButton></div>
-    </form>
-  );
-}
-
-export function PreferencesForm({ profile }: { profile: Profile }) {
-  const [state, action] = useActionState(updatePreferences, {});
-  return (
-    <form action={action} className="space-y-3">
-      <Field label="Theme"><Select name="theme" defaultValue={profile.preferences?.theme ?? "dark"}><option value="dark">Dark</option><option value="light">Light</option></Select></Field>
-      <Toggle name="effects" label="Game-style effects" hint={'Celebrations when you hit goals, and a "chud" screen when you go over your food limit'} defaultChecked={profile.preferences?.effects !== false} />
-      <p className="text-sm text-muted">Calories are shown in kcal and protein in grams.</p>
-      <FormMessage state={state} />
-      <SubmitButton variant="secondary" className="w-full">Save preferences</SubmitButton>
     </form>
   );
 }

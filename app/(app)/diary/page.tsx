@@ -2,7 +2,6 @@ import Link from "next/link";
 import { DateNav } from "@/components/date-nav";
 import { ActivityEntry, FoodEntry, MealEntry } from "@/components/entries";
 import { Card, Section } from "@/components/ui/card";
-import { PageHeader } from "@/components/page-header";
 import { getDay, requireProfile, requireUser, resolveDate } from "@/lib/data";
 import { summarize, targetsOf } from "@/lib/calc";
 import { fmt } from "@/lib/utils";
@@ -22,12 +21,11 @@ export default async function Diary({ searchParams }: { searchParams: Promise<{ 
     ["Eaten", fmt(s.foodCalories), "kcal"],
     ["Protein", fmt(s.protein, 1), "g"],
     ["Exercise (est.)", fmt(s.exerciseCalories), "kcal"],
-    ["Net", fmt(s.net), "kcal"],
+    ["Deficit", s.deficit === null ? "—" : fmt(s.deficit), "kcal"],
   ];
 
   return (
     <>
-      <PageHeader title="Diary" />
       <DateNav basePath="/diary" date={date} today={today} />
       {day.error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{day.error}</p>}
       <Card className="grid grid-cols-4 gap-2 px-3">

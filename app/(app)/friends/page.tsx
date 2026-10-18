@@ -4,7 +4,7 @@ import { removeFriendship, respondToRequest } from "@/app/actions/friends";
 import { Avatar } from "@/components/avatar";
 import { FriendAction } from "@/components/friend-action";
 import { FriendToday } from "@/components/friend-today";
-import { Empty, PageHeader } from "@/components/page-header";
+import { Empty } from "@/components/page-header";
 import { buttonClass } from "@/components/ui/button";
 import { Card, Section } from "@/components/ui/card";
 import { requireUser, resolveDate } from "@/lib/data";
@@ -21,7 +21,9 @@ export default async function Page() {
 
   return (
     <>
-      <PageHeader title="Friends" action={<Link href="/friends/add" aria-label="Add a friend" className={buttonClass({ size: "icon" })}><UserPlus className="h-5 w-5" /></Link>} />
+      <div className="flex justify-end">
+        <Link href="/friends/add" className={buttonClass({ size: "sm" })}><UserPlus className="h-4 w-4" />Add friend</Link>
+      </div>
 
       {incoming.length > 0 && (
         <Section title="Requests">

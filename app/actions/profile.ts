@@ -8,6 +8,8 @@ import { requireUser, getTz } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/site";
+import { isHex6 } from "@/lib/accent";
+import { setAppearanceCookies } from "@/lib/appearance";
 import { todayInTz } from "@/lib/dates";
 import { firstError, type State } from "@/lib/action-helpers";
 import { accountSchema, goalSchema, onboardingSchema, targetsSchema } from "@/lib/validation";
@@ -129,13 +131,15 @@ export async function updatePrivacy(_: State, fd: FormData): Promise<State> {
   return { ok: true, message: "Privacy settings saved." };
 }
 
-export async function updatePreferences(_: State, fd: FormData): Promise<State> {
+export async function updateAppearance(_: State, fd: FormData): Promise<State> {
   const { supabase, user } = await requireUser();
   const theme = fd.get("theme") === "light" ? "light" : "dark";
+  const accent = String(fd.get("accent") ?? "").replace("#", "").toLowerCase();
+  if (accent && !isHex6(accent)) return { error: "Choose a valid color." };
   const effects = fd.get("effects") === "on";
-  const { error } = await supabase.from("profiles").update({ preferences: { theme, effects } }).eq("id", user.id);
+  const { error } = await supabase.from("profiles").update({ preferences: { theme, effects, accent } }).eq("id", user.id);
   if (error) return { error: SAVE_FAILED };
-  (await cookies()).set("theme", theme, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  await setAppearanceCookies({ theme, accent });
   revalidatePath("/", "layout");
   return { ok: true, message: "Saved." };
 }

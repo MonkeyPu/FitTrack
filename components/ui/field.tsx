@@ -15,7 +15,7 @@ export const Select = ({ className, ...p }: React.SelectHTMLAttributes<HTMLSelec
 
 export function Field({ label, hint, children, className }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className={cn("block space-y-1.5", className)}>
+    <label className={cn("block min-w-0 space-y-1.5", className)}>
       <span className="text-sm font-medium text-muted">{label}</span>
       {children}
       {hint && <span className="block text-xs text-muted">{hint}</span>}

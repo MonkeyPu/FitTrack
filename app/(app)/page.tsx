@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { BookOpen, BookmarkPlus, Dumbbell, PenLine, Utensils } from "lucide-react";
 import { DateNav } from "@/components/date-nav";
 import { DayMoments } from "@/components/day-moments";
 import { ProgressBar, ProgressRing, statusText } from "@/components/progress";
-import { Card, Section } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { getDay, requireProfile, requireUser, resolveDate } from "@/lib/data";
 import { summarize, statusOf, targetsOf } from "@/lib/calc";
 import { addDays, daysBetween } from "@/lib/dates";
@@ -24,25 +22,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const t = targetsOf(profile);
   const s = summarize(day.foods, day.meals, day.activities, t);
   const ys = yDay ? summarize(yDay.foods, yDay.meals, yDay.activities, t) : null;
-  const q = date === today ? "" : `?date=${date}`;
 
   const foodStatus = statusOf(s.foodPct);
-  const netStatus = statusOf(s.netPct);
+  // Staying under the net target is the same as keeping at least the target deficit.
+  const deficitStatus = statusOf(s.netPct);
   const empty = day.foods.length + day.meals.length + day.activities.length === 0;
 
   const goalDays = profile.goal_target_date ? daysBetween(today, profile.goal_target_date) : null;
   const goalTotal = profile.goal_start_date && profile.goal_target_date ? daysBetween(profile.goal_start_date, profile.goal_target_date) : null;
   const goalElapsed = goalTotal && profile.goal_start_date ? Math.min(100, Math.max(0, (daysBetween(profile.goal_start_date, today) / goalTotal) * 100)) : null;
-
-  const rows: [string, string, string?][] = [
-    ["Maintenance", t.maintenance ? `${fmt(t.maintenance)} kcal` : "Not set"],
-    ["Maximum food calories", t.maxFood ? `${fmt(t.maxFood)} kcal` : "Not set"],
-    ["Consumed", `${fmt(s.foodCalories)} kcal`],
-    ["Exercise burned (estimate)", `${fmt(s.exerciseCalories)} kcal`],
-    ["Net calories", `${fmt(s.net)} kcal`],
-    ["Net calorie target", t.netTarget ? `${fmt(t.netTarget)} kcal` : "Not set"],
-    ["Net remaining to target", s.netRemaining === null ? "Not set" : `${fmt(s.netRemaining)} kcal`, s.netRemaining !== null && s.netRemaining < 0 ? "text-danger" : undefined],
-  ];
 
   return (
     <>
@@ -69,13 +57,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           </div>
         </Card>
         <Card className="flex flex-col items-center gap-3 px-2 py-5">
-          <ProgressRing pct={s.netPct} status={netStatus} size={132}>
-            <span className={cn("num text-3xl font-bold", statusText[netStatus])}>{s.netRemaining === null ? fmt(s.net) : fmt(Math.abs(s.netRemaining))}</span>
-            <span className="text-xs text-muted">{s.netRemaining === null ? "net" : s.netRemaining < 0 ? "over target" : "to target"}</span>
+          <ProgressRing pct={s.netPct} status={deficitStatus} size={132}>
+            <span className={cn("num text-3xl font-bold", statusText[deficitStatus])}>{s.deficit === null ? fmt(s.net) : fmt(Math.abs(s.deficit))}</span>
+            <span className="text-xs text-muted">{s.deficit === null ? "net" : s.deficit >= 0 ? "deficit" : "surplus"}</span>
           </ProgressRing>
           <div className="text-center">
-            <p className="text-sm font-semibold">Net</p>
-            <p className="num text-xs text-muted">{fmt(s.net)}{t.netTarget ? ` / ${fmt(t.netTarget)}` : ""} kcal</p>
+            <p className="text-sm font-semibold">Deficit</p>
+            <p className="num text-xs text-muted">
+              {fmt(s.deficit ?? s.net)} kcal{s.targetDeficit !== null ? ` · target ${fmt(s.targetDeficit)}` : ""}
+            </p>
           </div>
         </Card>
       </div>
@@ -92,36 +82,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </p>
       </Card>
 
-      <Card className="divide-y divide-line py-1">
-        {rows.map(([k, val, cls]) => (
-          <div key={k} className="flex items-center justify-between py-2.5 text-[15px]">
-            <span className="text-muted">{k}</span>
-            <span className={cn("num font-medium", cls)}>{val}</span>
-          </div>
-        ))}
-      </Card>
-
-      <Section title="Quick actions">
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { href: `/add/food${q}`, label: "Log food", icon: Utensils },
-            { href: `/add/meal${q}`, label: "Add saved meal", icon: BookmarkPlus },
-            { href: `/add/cardio${q}`, label: "Log cardio", icon: Dumbbell },
-            { href: `/add/food?quick=1${q ? `&date=${date}` : ""}`, label: "Add calories", icon: PenLine },
-          ].map(({ href, label, icon: Icon }) => (
-            <Link key={label} href={href} className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-card px-4 font-medium transition active:scale-[0.98]">
-              <Icon className="h-5 w-5 text-accent" />{label}
-            </Link>
-          ))}
-          <Link href={`/diary${q}`} className="col-span-2 flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-card px-4 font-medium transition active:scale-[0.98]">
-            <BookOpen className="h-5 w-5 text-accent" />View today&apos;s diary
-          </Link>
-        </div>
-      </Section>
-
       {empty && (
         <p className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
-          Nothing logged {date === today ? "yet today" : "on this day"}. Tap Log food to add your first entry.
+          Nothing logged {date === today ? "yet today" : "on this day"}. Tap + to add your first entry.
         </p>
       )}
 

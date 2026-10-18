@@ -16,12 +16,12 @@ export function BottomNav({ pendingRequests = 0 }: { pendingRequests?: number })
   const path = usePathname();
   const active = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/90 backdrop-blur-xl">
-      <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 md:max-w-2xl">
+    <nav aria-label="Main" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="glass pointer-events-auto mx-auto grid max-w-md grid-cols-5 items-center rounded-[32px] p-1.5 md:max-w-lg">
         {tabs.map(({ href, label, icon: Icon }) =>
           href === "/add" ? (
-            <Link key={href} href={href} prefetch aria-label="Add entry" aria-current={active(href) ? "page" : undefined} className="flex justify-center">
-              <span className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accentfg shadow-lg shadow-accent/25 ring-4 ring-bg transition active:scale-95">
+            <Link key={href} href={href} prefetch aria-label="Add entry" aria-current={active(href) ? "page" : undefined} className="relative flex justify-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accentfg shadow-lg shadow-accent/30 transition active:scale-95">
                 <Icon className="h-7 w-7" strokeWidth={2.5} />
               </span>
             </Link>
@@ -31,7 +31,7 @@ export function BottomNav({ pendingRequests = 0 }: { pendingRequests?: number })
               href={href}
               prefetch
               aria-current={active(href) ? "page" : undefined}
-              className={cn("flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition", active(href) ? "text-accent" : "text-muted")}
+              className={cn("relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-[26px] text-[11px] font-medium transition", active(href) ? "bg-fg/10 text-accent" : "text-muted")}
             >
               <span className="relative">
                 <Icon className="h-[22px] w-[22px]" />

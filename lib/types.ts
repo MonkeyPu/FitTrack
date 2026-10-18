@@ -20,7 +20,7 @@ export type Profile = {
   goal_start_date: string | null;
   goal_target_date: string | null;
   privacy_settings: Privacy;
-  preferences: { theme?: "dark" | "light"; effects?: boolean };
+  preferences: { theme?: "dark" | "light"; effects?: boolean; accent?: string };
   onboarded: boolean;
 };
 

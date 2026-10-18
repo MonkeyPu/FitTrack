@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site";
+import { setAppearanceCookies } from "@/lib/appearance";
 import type { State } from "@/lib/action-helpers";
 
 const email = z.string().trim().toLowerCase().email("Enter a valid email address");
@@ -29,6 +30,9 @@ export async function signIn(_: State, fd: FormData): Promise<State> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(p.data);
   if (error) return { error: "Incorrect email or password." };
+  // Bring this device's theme and accent color in line with the saved ones.
+  const { data: prof } = await supabase.from("profiles").select("preferences").maybeSingle();
+  await setAppearanceCookies(prof?.preferences);
   redirect("/");
 }
 

@@ -71,6 +71,27 @@ describe("summarize", () => {
   });
 });
 
+describe("deficit", () => {
+  const day = (food: number, burned: number) =>
+    summarize([{ total_calories: food, total_protein: 0 }], [], [{ calories_burned: burned }], targets);
+
+  it("is maintenance minus net calories", () => {
+    expect(day(1450, 250).deficit).toBe(1300); // 2500 - (1450 - 250)
+    expect(day(0, 0).deficit).toBe(2500);
+  });
+  it("goes negative for a surplus", () => {
+    expect(day(3000, 0).deficit).toBe(-500);
+  });
+  it("target deficit is maintenance minus net target, only when positive", () => {
+    expect(day(0, 0).targetDeficit).toBe(800);
+    const maintenanceTarget: Targets = { ...targets, netTarget: 2500 };
+    expect(summarize([], [], [], maintenanceTarget).targetDeficit).toBeNull();
+  });
+  it("is null without maintenance calories", () => {
+    expect(summarize([], [], [], { ...targets, maintenance: null }).deficit).toBeNull();
+  });
+});
+
 describe("percent / statusOf", () => {
   it("classifies progress", () => {
     expect(statusOf(percent(50, 100))).toBe("ok");
