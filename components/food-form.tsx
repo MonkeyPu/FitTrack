@@ -59,6 +59,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
   const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [query, setQuery] = useState("");
   const [catalogFor, setCatalogFor] = useState<"main" | "extra" | null>(null);
+  const [catalogQuery, setCatalogQuery] = useState("");
   const [error, setError] = useState("");
   const sent = useRef(false);
 
@@ -112,6 +113,11 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. yoghurt" className="pl-10" />
             </div>
           </Field>
+          {query.trim().length >= 3 && (
+            <button type="button" onClick={() => { setCatalogQuery(query.trim()); setCatalogFor("main"); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-line bg-card px-4 text-left text-sm text-accent">
+              <Store className="h-4 w-4 shrink-0" /><span className="truncate">Find &ldquo;{query.trim()}&rdquo; in the supermarket catalog</span>
+            </button>
+          )}
           {query.trim() !== "" && (
             <ul className="overflow-hidden rounded-xl border border-line">
               {matches.length === 0 && <li className="px-4 py-3 text-sm text-muted">No saved food matches. Fill in the details below.</li>}
@@ -129,7 +135,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
       )}
 
       {!quick && (
-        <Button type="button" variant="secondary" className="w-full" onClick={() => setCatalogFor("main")}><Store className="h-4 w-4" />Search supermarket catalog</Button>
+        <Button type="button" variant="secondary" className="w-full" onClick={() => { setCatalogQuery(""); setCatalogFor("main"); }}><Store className="h-4 w-4" />Search supermarket catalog</Button>
       )}
 
       <Field label="Food name"><Input value={main.name} onChange={(e) => setM({ name: e.target.value })} maxLength={100} /></Field>
@@ -166,7 +172,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
             )}
             <Button type="button" variant="secondary" className={foods.length === 0 ? "col-span-2" : ""} onClick={() => setExtras((l) => [...l, blankRow()])}><Plus className="h-4 w-4" />Custom ingredient</Button>
           </div>
-          <Button type="button" variant="secondary" className="w-full" onClick={() => setCatalogFor("extra")}><Store className="h-4 w-4" />Ingredient from supermarket catalog</Button>
+          <Button type="button" variant="secondary" className="w-full" onClick={() => { setCatalogQuery(""); setCatalogFor("extra"); }}><Store className="h-4 w-4" />Ingredient from supermarket catalog</Button>
         </div>
       )}
 
@@ -193,6 +199,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
 
       {catalogFor && (
         <CatalogPicker
+          initialQuery={catalogQuery}
           onClose={() => setCatalogFor(null)}
           onPick={(p) => {
             if (catalogFor === "main") setMain((m) => ({ ...rowFromPicked(p), key: m.key, qty: m.qty }));

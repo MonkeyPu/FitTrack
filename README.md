@@ -93,7 +93,10 @@ Calorie targets and maintenance numbers are estimates. The app warns on very low
 
 ## Supermarket catalog
 - Source: [Open Food Facts](https://world.openfoodfacts.org), an open database filled in by volunteers. Coverage of Mercadona is good but not complete, and individual values can be wrong. The app warns when values look inconsistent.
-- Searches go through `/api/catalog/search` (signed-in users only). Results are cached for a day and each person is limited to 8 searches a minute, to stay inside Open Food Facts' limit of 10 searches a minute.
+- Typing 3 or more letters shows matching products with photos as you type. Products from the chosen store (Mercadona also covers its Hacendado brand) are listed first, with an option to show only that store.
+- Text search uses Open Food Facts' search service (search.openfoodfacts.org) through `/api/catalog/search` (signed-in users only). The older search address is only a backup. Barcodes use the product API.
+- Answers are cached for a day, searches wait for a short pause in typing, and each person is limited to 40 searches a minute.
+- If a search finds nothing or fails, the "Details" line under the message shows what the catalog returned, which helps when reporting a problem.
 - Optional: set `OFF_CONTACT_EMAIL` in Vercel so Open Food Facts can contact you. Without it your site URL is used.
 - Foods you pick are copied into your own entries and saved foods. Attribution to Open Food Facts is shown in the catalog.
 
