@@ -1,11 +1,12 @@
 "use client";
 import { useActionState, useState } from "react";
 import { changePassword } from "@/app/actions/auth";
-import { changeEmail, deleteAccount, updateAccount, updateGoal, updatePrivacy, updateTargets } from "@/app/actions/profile";
+import { changeEmail, deleteAccount, updateAccount, updateBodyStats, updateGoal, updateNutrientGoals, updatePrivacy, updateTargets } from "@/app/actions/profile";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, Input, Select, Textarea, Toggle } from "@/components/ui/field";
+import { NUTRIENTS, NUTRIENT_GOAL_KIND, parseNutrientGoals } from "@/lib/nutrition";
 import { ESTIMATE_NOTE, targetWarnings } from "@/lib/safety";
 import type { Profile } from "@/lib/types";
 
@@ -60,6 +61,45 @@ export function TargetsForm({ profile }: { profile: Profile }) {
       <p className="text-sm text-muted">{ESTIMATE_NOTE} Changing targets doesn't change past entries.</p>
       <FormMessage state={state} />
       <SubmitButton className="w-full">Save targets</SubmitButton>
+    </form>
+  );
+}
+
+export function NutrientGoalsForm({ profile }: { profile: Profile }) {
+  const [state, action] = useActionState(updateNutrientGoals, {});
+  const goals = parseNutrientGoals(profile.nutrient_goals);
+  return (
+    <form action={action} className="space-y-4">
+      <p className="text-sm text-muted">Totally optional. Set a daily goal for any of these and it shows up on your home screen. Leave a box empty for no goal. Grams per day.</p>
+      {NUTRIENTS.map((n) => (
+        <Field key={n.key} label={n.label} hint={NUTRIENT_GOAL_KIND[n.key] === "max" ? "A limit to stay under" : "An amount to aim for"}>
+          <Input name={`goal_${n.key}`} type="number" inputMode="decimal" step="any" min="0" defaultValue={goals[n.key] ?? ""} placeholder="No goal" />
+        </Field>
+      ))}
+      <FormMessage state={state} />
+      <SubmitButton className="w-full">Save nutrient goals</SubmitButton>
+    </form>
+  );
+}
+
+export function BodyStatsForm({ profile }: { profile: Profile }) {
+  const [state, action] = useActionState(updateBodyStats, {});
+  return (
+    <form action={action} className="space-y-4">
+      <p className="text-sm text-muted">Used to estimate calories burned when you log cardio. These stay private, and you can still type your own number for any activity.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Height" hint="cm"><Input name="height_cm" type="number" inputMode="decimal" step="any" defaultValue={profile.height_cm ?? ""} placeholder="e.g. 175" /></Field>
+        <Field label="Weight" hint="kg"><Input name="weight_kg" type="number" inputMode="decimal" step="any" defaultValue={profile.weight_kg ?? ""} placeholder="e.g. 70" /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Age (optional)"><Input name="age" type="number" inputMode="numeric" defaultValue={profile.age ?? ""} /></Field>
+        <Field label="Sex (optional)">
+          <Select name="sex" defaultValue={profile.sex ?? ""}><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option></Select>
+        </Field>
+      </div>
+      <p className="text-sm text-muted">Age and sex make the estimate a little more accurate. Update your weight here as it changes. Past activities keep the calories they were saved with.</p>
+      <FormMessage state={state} />
+      <SubmitButton className="w-full">Save body stats</SubmitButton>
     </form>
   );
 }

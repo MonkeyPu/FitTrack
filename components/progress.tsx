@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { Status } from "@/lib/calc";
+import { netBar, NET_BAR_FLOOR, type Status } from "@/lib/calc";
 
 const stroke: Record<Status, string> = { none: "stroke-line", ok: "stroke-accent", near: "stroke-warn", over: "stroke-danger" };
 const fill: Record<Status, string> = { none: "bg-line", ok: "bg-accent", near: "bg-warn", over: "bg-danger" };
@@ -30,6 +30,32 @@ export function ProgressBar({ pct, status, label }: { pct: number | null; status
   return (
     <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(shown)} className="h-2.5 overflow-hidden rounded-full bg-card2">
       <div className={cn("h-full rounded-full transition-[width] duration-500", fill[status])} style={{ width: `${shown}%` }} />
+    </div>
+  );
+}
+
+/**
+ * Net calories against the net target. Zero sits a little in from the left edge, so there is room
+ * to show days when logged exercise is larger than food (net below zero, down to -500).
+ */
+export function NetBar({ net, target, status, label }: { net: number; target: number | null; status: Status; label: string }) {
+  const b = netBar(net, target);
+  const color = b.below ? "bg-accent" : fill[status];
+  return (
+    <div>
+      <div
+        role="progressbar" aria-label={label} aria-valuemin={-NET_BAR_FLOOR} aria-valuemax={target ?? 0}
+        aria-valuenow={Math.round(Math.max(net, -NET_BAR_FLOOR))}
+        className="relative h-3 overflow-hidden rounded-full bg-card2"
+      >
+        <div className={cn("absolute inset-y-0 transition-[left,width] duration-500", color)} style={{ left: `${b.left}%`, width: `${b.width}%` }} />
+        <div className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-fg/70" style={{ left: `${b.zero}%` }} />
+      </div>
+      <div className="num relative mt-1 h-4 text-[11px] text-muted" aria-hidden>
+        <span className="absolute left-0">&minus;{NET_BAR_FLOOR}</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${b.zero}%` }}>0</span>
+        {target !== null && <span className="absolute right-0">{target.toLocaleString("en-US")}</span>}
+      </div>
     </div>
   );
 }

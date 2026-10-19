@@ -1,3 +1,5 @@
+import type { NutrientGoals } from "./nutrition";
+
 export type Privacy = {
   share_summary: boolean;
   share_exercise: boolean;
@@ -11,6 +13,11 @@ export type Profile = {
   display_name: string;
   avatar_url: string | null;
   age: number | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  sex: "male" | "female" | null;
+  /** Optional daily goals for carbs, sugar, fat, sat_fat, fiber, salt (grams). Empty = none set. */
+  nutrient_goals: NutrientGoals;
   maintenance_calories: number | null;
   max_food_calories: number | null;
   net_calorie_target: number | null;
@@ -103,6 +110,7 @@ export type ActivityLog = {
   duration_minutes: number;
   calories_burned: number;
   calorie_source: string;
+  intensity: string | null;
   notes: string | null;
   logged_at: string;
   log_date: string;
@@ -118,6 +126,7 @@ export const ACTIVITY_PRESETS = [
 ] as const;
 
 export const CALORIE_SOURCES = [
+  { value: "calculated", label: "Calculated by FitTrack" },
   { value: "manual", label: "My own estimate" },
   { value: "apple_health", label: "Apple Health" },
   { value: "smartwatch", label: "Smartwatch" },

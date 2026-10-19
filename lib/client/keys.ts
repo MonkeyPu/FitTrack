@@ -1,6 +1,7 @@
 export const qk = {
   day: (date: string) => ["day", date] as const,
   history: (from: string, to: string) => ["history", from, to] as const,
+  goalTotals: (from: string, to: string) => ["goal-totals", from, to] as const,
   foods: ["foods"] as const,
   meals: ["meals"] as const,
   log: (kind: string, id: string) => ["log", kind, id] as const,

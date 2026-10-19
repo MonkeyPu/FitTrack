@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppearanceForm } from "@/components/appearance-form";
 import { PageHeader } from "@/components/page-header";
-import { AccountForm, DangerZone, GoalForm, LoginForm, PrivacyForm, TargetsForm } from "@/components/settings-forms";
+import { AccountForm, BodyStatsForm, DangerZone, GoalForm, LoginForm, NutrientGoalsForm, PrivacyForm, TargetsForm } from "@/components/settings-forms";
 import { Card, Section } from "@/components/ui/card";
 import { requireProfile } from "@/lib/data";
 import { SETTINGS_SECTIONS } from "@/lib/settings-sections";
@@ -23,6 +23,8 @@ export default async function Page({ params }: { params: Promise<{ section: stri
         <Section title="Email and password"><Card><LoginForm email={user.email ?? ""} /></Card></Section>
       </>)}
       {section === "targets" && <Card><TargetsForm profile={profile} /></Card>}
+      {section === "nutrient-goals" && <Card><NutrientGoalsForm profile={profile} /></Card>}
+      {section === "body" && <Card><BodyStatsForm profile={profile} /></Card>}
       {section === "goal" && <Card><GoalForm profile={profile} /></Card>}
       {section === "privacy" && (
         <Card className="space-y-4">

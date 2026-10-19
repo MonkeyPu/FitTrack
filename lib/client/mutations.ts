@@ -40,6 +40,7 @@ function dayCache(qc: QueryClient) {
     settle(dates: string[]) {
       [...new Set(dates)].forEach((d) => qc.invalidateQueries({ queryKey: qk.day(d) }));
       qc.invalidateQueries({ queryKey: ["history"] });
+      qc.invalidateQueries({ queryKey: ["goal-totals"] });
       qc.invalidateQueries({ queryKey: ["friend-cards"] });
     },
   };
@@ -228,7 +229,7 @@ export function useDeleteEntry() {
 
 export type ActivityInput = {
   id?: string; oldDate?: string; date: string; loggedAt: string; name: string; type: string;
-  minutes: number; calories: number; source: string; notes: string | null;
+  minutes: number; calories: number; source: string; intensity: string | null; notes: string | null;
 };
 
 export function useSaveActivity() {
@@ -243,7 +244,7 @@ export function useSaveActivity() {
       assertOnline();
       const row = {
         activity_name: a.name, activity_type: a.type, duration_minutes: Math.round(a.minutes), calories_burned: a.calories,
-        calorie_source: a.source, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
+        calorie_source: a.source, intensity: a.intensity, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
       };
       const { error } = a.id
         ? await sb.from("activity_logs").update(row).eq("id", a.id)
@@ -255,7 +256,7 @@ export function useSaveActivity() {
       if (a.id && a.oldDate) cache.patch(a.oldDate, (d) => ({ ...d, activities: d.activities.filter((x) => x.id !== a.id) }));
       const entry = {
         id: a.id ?? tmpId(), activity_name: a.name, activity_type: a.type, duration_minutes: Math.round(a.minutes),
-        calories_burned: a.calories, calorie_source: a.source, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
+        calories_burned: a.calories, calorie_source: a.source, intensity: a.intensity, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
       } as ActivityLog;
       cache.patch(a.date, (d) => ({ ...d, activities: byTime([...d.activities.filter((x) => x.id !== entry.id), entry]) }));
       return { snap };

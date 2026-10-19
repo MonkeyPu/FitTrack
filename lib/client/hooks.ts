@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/components/app-context";
 import { createClient } from "@/lib/supabase/client";
-import { fetchDay, fetchFoods, fetchFriendCards, fetchFriendHistory, fetchFriendPerms, fetchFriendships, fetchHistory, fetchLog, fetchMeals, searchProfiles, type DayData } from "@/lib/client/api";
+import { fetchDay, fetchFoods, fetchGoalTotals, fetchFriendCards, fetchFriendHistory, fetchFriendPerms, fetchFriendships, fetchHistory, fetchLog, fetchMeals, searchProfiles, type DayData } from "@/lib/client/api";
 import { qk } from "@/lib/client/keys";
 
 export const useSupabase = () => useMemo(() => createClient(), []);
@@ -30,6 +30,14 @@ export function useHistory(from: string, to: string) {
   const sb = useSupabase();
   const { userId, ready } = useApp();
   return useQuery({ queryKey: qk.history(from, to), queryFn: () => fetchHistory(sb, userId, from, to), enabled: ready && !!to });
+}
+
+/** Daily totals from the goal start up to `to`. Off when there is no goal start or the range is empty. */
+export function useGoalTotals(from: string | null | undefined, to: string) {
+  const sb = useSupabase();
+  const { ready } = useApp();
+  const on = ready && !!from && !!to && from <= to;
+  return useQuery({ queryKey: qk.goalTotals(from ?? "", to), queryFn: () => fetchGoalTotals(sb, from!, to), enabled: on, staleTime: 60_000 });
 }
 
 export function useFriendCards(date: string) {

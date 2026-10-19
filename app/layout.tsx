@@ -5,6 +5,7 @@ import { Logo } from "@/components/logo";
 import { NoZoom } from "@/components/no-zoom";
 import { SplashHide } from "@/components/splash-hide";
 import { accentVars, isHex6 } from "@/lib/accent";
+import type { Status } from "@/lib/calc";
 
 export const metadata: Metadata = {
   title: { default: "FitTrack", template: "%s · FitTrack" },
@@ -47,10 +48,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme = store.get("theme")?.value === "light" ? "light" : "dark";
   const accent = store.get("accent")?.value;
   const vars = isHex6(accent) ? accentVars(accent) : null;
+  // Today's calorie progress from the last visit ("0.64|ok"), so the launch screen ring matches the app icon.
+  const [ringP, ringS] = (store.get("ft_ring")?.value ?? "").split("|");
+  const ring = Number.isFinite(Number(ringP)) && ringP !== "" && ["none", "ok", "near", "over"].includes(ringS)
+    ? { progress: Number(ringP), status: ringS as Status } : null;
   return (
     <html lang="en" className={theme === "light" ? "light" : ""} style={vars ? ({ "--accent": vars.accent, "--accentfg": vars.accentfg } as React.CSSProperties) : undefined}>
       <body className="min-h-dvh antialiased">
-        <div id="splash" className="splash" aria-hidden><Logo className="h-20 w-20 animate-spin" /></div>
+        <div id="splash" className="splash" aria-hidden><Logo className="h-20 w-20 animate-spin" progress={ring?.progress} status={ring?.status} /></div>
         <SplashHide />
         <NoZoom />
         {children}

@@ -12,7 +12,8 @@ import { isHex6 } from "@/lib/accent";
 import { setAppearanceCookies } from "@/lib/appearance";
 import { todayInTz } from "@/lib/dates";
 import { firstError, type State } from "@/lib/action-helpers";
-import { accountSchema, goalSchema, onboardingSchema, targetsSchema } from "@/lib/validation";
+import { NUTRIENT_KEYS, type NutrientGoals } from "@/lib/nutrition";
+import { accountSchema, bodySchema, goalSchema, nutrientGoalsSchema, onboardingSchema, targetsSchema } from "@/lib/validation";
 
 const USERNAME_TAKEN = "That username is taken. Try another.";
 const SAVE_FAILED = "Couldn't save your changes. Try again.";
@@ -38,6 +39,9 @@ export async function completeOnboarding(_: State, fd: FormData): Promise<State>
       username: v.username,
       avatar_url: v.avatar_url ?? null,
       age: v.age ?? null,
+      height_cm: v.height_cm ?? null,
+      weight_kg: v.weight_kg ?? null,
+      sex: v.sex ?? null,
       maintenance_calories: v.maintenance_calories,
       max_food_calories: v.max_food_calories,
       net_calorie_target: v.net_calorie_target,
@@ -91,6 +95,36 @@ export async function updateTargets(_: State, fd: FormData): Promise<State> {
   if (error) return { error: SAVE_FAILED };
   revalidatePath("/", "layout");
   return { ok: true, message: "Targets saved. Past entries are unchanged." };
+}
+
+export async function updateBodyStats(_: State, fd: FormData): Promise<State> {
+  const { supabase, user } = await requireUser();
+  const p = bodySchema.safeParse(Object.fromEntries(fd));
+  if (!p.success) return { error: firstError(p.error) };
+  const v = p.data;
+  const { error } = await supabase
+    .from("profiles")
+    .update({ age: v.age ?? null, height_cm: v.height_cm ?? null, weight_kg: v.weight_kg ?? null, sex: v.sex ?? null })
+    .eq("id", user.id);
+  if (error) return { error: SAVE_FAILED };
+  revalidatePath("/", "layout");
+  return { ok: true, message: v.height_cm && v.weight_kg ? "Saved. Cardio calories will be calculated for you." : "Saved. Add height and weight to calculate cardio calories." };
+}
+
+export async function updateNutrientGoals(_: State, fd: FormData): Promise<State> {
+  const { supabase, user } = await requireUser();
+  const p = nutrientGoalsSchema.safeParse(Object.fromEntries(fd));
+  if (!p.success) return { error: firstError(p.error) };
+  // Blank or 0 means "no goal", so only real values are stored.
+  const goals: NutrientGoals = {};
+  for (const k of NUTRIENT_KEYS) {
+    const n = (p.data as Record<string, number | undefined>)[`goal_${k}`];
+    if (typeof n === "number" && n > 0) goals[k] = n;
+  }
+  const { error } = await supabase.from("profiles").update({ nutrient_goals: goals }).eq("id", user.id);
+  if (error) return { error: SAVE_FAILED };
+  revalidatePath("/", "layout");
+  return { ok: true, message: Object.keys(goals).length ? "Nutrient goals saved." : "No nutrient goals set." };
 }
 
 export async function updateGoal(_: State, fd: FormData): Promise<State> {

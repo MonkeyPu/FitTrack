@@ -17,6 +17,7 @@ export async function saveActivityLog(_: State, fd: FormData): Promise<State> {
     duration_minutes: Math.round(v.duration_minutes),
     calories_burned: v.calories_burned,
     calorie_source: v.calorie_source,
+    intensity: v.intensity ?? null,
     notes: v.notes || null,
     logged_at: v.logged_at,
     log_date: v.log_date,

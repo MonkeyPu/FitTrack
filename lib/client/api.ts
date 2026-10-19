@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { GoalDay } from "@/lib/calc";
 import { groupDaily } from "@/lib/history";
 import type { ActivityLog, DayTotals, FriendCardData, FriendPerms, FriendshipRow, Food, FoodLog, Meal, MealLog } from "@/lib/types";
 
@@ -15,6 +16,15 @@ export async function fetchDay(sb: SupabaseClient, userId: string, date: string)
   const err = f.error ?? m.error ?? a.error;
   if (err) throw err;
   return { foods: (f.data ?? []) as FoodLog[], meals: (m.data ?? []) as MealLog[], activities: (a.data ?? []) as ActivityLog[] };
+}
+
+/** Per-day totals for the signed-in user, one row per day that has any entry. */
+export async function fetchGoalTotals(sb: SupabaseClient, from: string, to: string): Promise<GoalDay[]> {
+  const { data, error } = await sb.rpc("my_daily_totals", { from_d: from, to_d: to });
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    date: String(r.log_date), food: Number(r.food_calories), exercise: Number(r.exercise_calories),
+  }));
 }
 
 export async function fetchFoods(sb: SupabaseClient, userId: string): Promise<Food[]> {

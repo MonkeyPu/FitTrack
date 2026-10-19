@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/app-context";
 import { DateTimeFields } from "@/components/datetime-fields";
@@ -7,23 +8,37 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useSaveActivity } from "@/lib/client/mutations";
 import { FormError, parseNum, parseText } from "@/lib/client/validate";
+import { estimateCardioCalories, hasBodyStats, INTENSITIES, INTENSITY_HINTS, isIntensity, type Intensity } from "@/lib/cardio";
 import { ACTIVITY_PRESETS, CALORIE_SOURCES } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type ActivityInitial = { id: string; date: string; name: string; type: string; duration: number; cal: number; source: string; notes: string; time: string };
+export type ActivityInitial = { id: string; date: string; name: string; type: string; duration: number; cal: number; source: string; intensity?: string | null; notes: string; time: string };
 
 export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
   const router = useRouter();
-  const { date: selected, today, setDate } = useApp();
+  const { date: selected, today, setDate, profile } = useApp();
   const save = useSaveActivity();
+  const body = { weightKg: profile.weight_kg, heightCm: profile.height_cm, age: profile.age, sex: profile.sex };
+  const canCalc = hasBodyStats(body);
+  const startIntensity = initial?.intensity;
+
   const [type, setType] = useState(initial?.type ?? "running");
   const [name, setName] = useState(initial?.name ?? "Running");
+  const [intensity, setIntensity] = useState<Intensity>(isIntensity(startIntensity) ? startIntensity : "moderate");
   const [minutes, setMinutes] = useState(initial ? String(initial.duration) : "");
   const [cal, setCal] = useState(initial ? String(initial.cal) : "");
   const [source, setSource] = useState(initial?.source ?? "manual");
+  // New entries start on the calculated value. Existing ones keep what was saved unless they were calculated too.
+  const [auto, setAuto] = useState(initial ? initial.source === "calculated" && canCalc : canCalc);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [error, setError] = useState("");
   const sent = useRef(false);
+
+  const estimate = estimateCardioCalories({ type, intensity, minutes: Number(minutes), body });
+  const useCalc = auto && canCalc;
+  const calValue = useCalc ? (estimate === null ? "" : String(estimate)) : cal;
+  // A hand-typed number is never labelled "calculated".
+  const sourceValue = useCalc ? "calculated" : source === "calculated" ? "manual" : source;
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,10 +51,10 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
       if (!date || !loggedAt) throw new FormError("Choose a date and time.");
       sent.current = true;
       save.mutate({
-        id: initial?.id, oldDate: initial?.date, date, loggedAt, type, source,
+        id: initial?.id, oldDate: initial?.date, date, loggedAt, type, source: sourceValue, intensity,
         name: parseText(name, "activity name", 60, true),
         minutes: parseNum(minutes, "duration", { min: 1, max: 1440, required: true, int: true }),
-        calories: parseNum(cal, "calories burned", { max: 10000, required: true }),
+        calories: parseNum(calValue, "calories burned", { max: 10000, required: true }),
         notes: parseText(notes, "notes", 500) || null,
       });
       setDate(date);
@@ -60,13 +75,43 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
         ))}
       </div>
       <Field label="Activity name"><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} /></Field>
+
+      <div className="space-y-1.5">
+        <span className="text-sm font-medium text-muted">How hard was it?</span>
+        <div role="radiogroup" aria-label="Intensity" className="grid grid-cols-3 gap-2">
+          {INTENSITIES.map((i) => (
+            <button key={i.value} type="button" role="radio" aria-checked={intensity === i.value} onClick={() => setIntensity(i.value)}
+              className={cn("min-h-11 rounded-xl border px-2 text-sm font-medium transition", intensity === i.value ? "border-accent bg-accent/10 text-accent" : "border-line bg-card text-fg")}>{i.label}</button>
+          ))}
+        </div>
+        <p className="text-xs text-muted">{(INTENSITY_HINTS[type] ?? INTENSITY_HINTS.other_cardio)[intensity]}</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <Field label="Duration"><Input type="number" inputMode="numeric" min="1" max="1440" step="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="minutes" /></Field>
-        <Field label="Calories burned (estimate)"><Input type="number" inputMode="decimal" step="any" min="0" value={cal} onChange={(e) => setCal(e.target.value)} placeholder="kcal" /></Field>
+        <Field label={useCalc ? "Calories burned (calculated)" : "Calories burned (estimate)"}>
+          <Input type="number" inputMode="decimal" step="any" min="0" value={calValue} onChange={(e) => { setAuto(false); setCal(e.target.value); }} placeholder="kcal" />
+        </Field>
       </div>
-      <Field label="Where is the estimate from?" hint="Enter the number from your watch, Apple Health or the machine. It's an estimate, not a measurement.">
-        <Select value={source} onChange={(e) => setSource(e.target.value)}>{CALORIE_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</Select>
-      </Field>
+
+      {useCalc ? (
+        <p className="text-xs text-muted">Worked out from your height, weight, the activity, how hard it was and how long. Type your own number to override it. It&apos;s an estimate, not a measurement.</p>
+      ) : (
+        <>
+          {canCalc && estimate !== null && (
+            <button type="button" onClick={() => setAuto(true)} className="text-sm font-medium text-accent">Use calculated estimate (about {estimate} kcal)</button>
+          )}
+          {!canCalc && (
+            <p className="rounded-xl border border-line bg-card px-3 py-2 text-sm text-muted">
+              Want this worked out for you? <Link href="/profile/body" className="font-medium text-accent">Add your height and weight</Link>.
+            </p>
+          )}
+          <Field label="Where is the estimate from?" hint="Enter the number from your watch, Apple Health or the machine. It's an estimate, not a measurement.">
+            <Select value={sourceValue} onChange={(e) => setSource(e.target.value)}>{CALORIE_SOURCES.filter((s) => s.value !== "calculated").map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</Select>
+          </Field>
+        </>
+      )}
+
       <DateTimeFields date={initial?.date ?? selected} today={today} initialTime={initial?.time} />
       <Field label="Notes"><Textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></Field>
       {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}

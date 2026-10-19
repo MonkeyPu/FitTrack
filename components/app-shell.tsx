@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { AppProvider, useApp } from "@/components/app-context";
+import { AppIconSync } from "@/components/app-icon-sync";
 import { BottomNav } from "@/components/bottom-nav";
 import { DateBar } from "@/components/date-bar";
 import { ToastProvider } from "@/components/toast";
@@ -40,6 +41,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
   return (
     <>
       <TzCookie />
+      <AppIconSync />
       <PrefetchDays />
       {showDate && (
         <header className="sticky top-0 z-30 border-b border-line/50 bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">

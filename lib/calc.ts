@@ -107,3 +107,61 @@ export function summarize(
     proteinPct: percent(protein, targets.protein),
   };
 }
+
+/* ───────────── net calorie bar ───────────── */
+
+/** Room kept left of zero for days when logged exercise is bigger than food (net below 0). */
+export const NET_BAR_FLOOR = 500;
+/** Where zero sits along the bar, in percent from the left. */
+export const NET_BAR_ZERO = 30;
+
+/**
+ * Geometry for the net calorie bar. Zero sits NET_BAR_ZERO percent in. Net calories above zero fill
+ * to the right, reaching the end at the net target. Net below zero fills left, reaching the edge at -floor.
+ */
+export function netBar(net: number, target: number | null | undefined, floor = NET_BAR_FLOOR, zero = NET_BAR_ZERO) {
+  if (net >= 0) {
+    const frac = hasTarget(target) ? Math.min(net / target, 1) : 0;
+    return { zero, left: zero, width: frac * (100 - zero), below: false };
+  }
+  const width = Math.min(-net / floor, 1) * zero;
+  return { zero, left: zero - width, width, below: true };
+}
+
+/* ───────────── deficit since the goal started ───────────── */
+
+export type GoalDay = { date: string; food: number; exercise: number };
+
+export type GoalDeficit = {
+  /** completed days with at least one food entry */
+  loggedDays: number;
+  food: number;
+  exercise: number;
+  net: number;
+  /** maintenance x loggedDays minus net. Negative means a surplus overall. Null without maintenance. */
+  deficit: number | null;
+  /** what the daily target deficit adds up to over the same days */
+  targetDeficit: number | null;
+};
+
+/**
+ * Adds up the deficit over past days. Today is left out until it is over, because a half-logged
+ * day would look like a huge deficit. Days with no food logged are skipped, not counted as fasting.
+ * Uses the current maintenance value for every day.
+ */
+export function goalDeficit(days: GoalDay[], t: Pick<Targets, "maintenance" | "netTarget">, today: string): GoalDeficit {
+  const counted = days.filter((d) => d.date < today && d.food > 0);
+  const food = sum(counted.map((d) => d.food));
+  const exercise = sum(counted.map((d) => d.exercise));
+  const net = food - exercise;
+  const loggedDays = counted.length;
+  const hasM = hasTarget(t.maintenance);
+  return {
+    loggedDays,
+    food,
+    exercise,
+    net,
+    deficit: hasM ? t.maintenance! * loggedDays - net : null,
+    targetDeficit: hasM && hasTarget(t.netTarget) && t.maintenance! > t.netTarget! ? (t.maintenance! - t.netTarget!) * loggedDays : null,
+  };
+}

@@ -1,12 +1,15 @@
 "use client";
 import { useApp } from "@/components/app-context";
 import { DayMoments } from "@/components/day-moments";
-import { ProgressBar, ProgressRing, statusText } from "@/components/progress";
+import { GoalDeficitCard } from "@/components/goal-deficit-card";
+import { NutrientGoalsCard } from "@/components/nutrient-goals-card";
+import { NetBar, ProgressBar, ProgressRing, statusText } from "@/components/progress";
 import { PageSkeleton } from "@/components/skeleton";
 import { Card } from "@/components/ui/card";
 import { useDay } from "@/lib/client/hooks";
-import { summarize, statusOf, targetsOf } from "@/lib/calc";
+import { hasTarget, summarize, statusOf, targetsOf } from "@/lib/calc";
 import { addDays, daysBetween } from "@/lib/dates";
+import { parseNutrientGoals } from "@/lib/nutrition";
 import { cn, fmt } from "@/lib/utils";
 
 export function HomeView() {
@@ -26,7 +29,11 @@ export function HomeView() {
   // Staying under the net target is the same as keeping at least the target deficit.
   const deficitStatus = statusOf(s.netPct);
   const empty = day.data.foods.length + day.data.meals.length + day.data.activities.length === 0;
-  const macros = [["Carbs", s.nutrients.carbs], ["Sugar", s.nutrients.sugar], ["Fat", s.nutrients.fat], ["Fiber", s.nutrients.fiber]] as const;
+  const goals = parseNutrientGoals(profile.nutrient_goals);
+  // Nutrients with a goal get their own progress card, so the quick totals only list the rest.
+  const macros = ([["Carbs", "carbs"], ["Sugar", "sugar"], ["Fat", "fat"], ["Fiber", "fiber"]] as const)
+    .filter(([, k]) => !goals[k])
+    .map(([label, k]) => [label, s.nutrients[k]] as const);
 
   const goalDays = profile.goal_target_date ? daysBetween(today, profile.goal_target_date) : null;
   const goalTotal = profile.goal_start_date && profile.goal_target_date ? daysBetween(profile.goal_start_date, profile.goal_target_date) : null;
@@ -51,28 +58,30 @@ export function HomeView() {
           <div className="text-center"><p className="text-sm font-semibold">Food</p><p className="num text-xs text-muted">{fmt(s.foodCalories)}{t.maxFood ? ` / ${fmt(t.maxFood)}` : ""} kcal</p></div>
         </Card>
         <Card className="flex flex-col items-center gap-3 px-2 py-5">
-          <ProgressRing pct={s.netPct} status={deficitStatus} size={132}>
-            <span className={cn("num text-3xl font-bold", statusText[deficitStatus])}>{s.deficit === null ? fmt(s.net) : fmt(Math.abs(s.deficit))}</span>
-            <span className="text-xs text-muted">{s.deficit === null ? "net" : s.deficit >= 0 ? "deficit" : "surplus"}</span>
+          <ProgressRing pct={s.proteinPct} status="ok" size={132}>
+            <span className="num text-3xl font-bold">{s.proteinRemaining === null ? fmt(s.protein, 1) : fmt(Math.abs(s.proteinRemaining), 1)}</span>
+            <span className="text-xs text-muted">{s.proteinRemaining === null ? "g eaten" : s.proteinRemaining < 0 ? "g over goal" : "g left"}</span>
           </ProgressRing>
-          <div className="text-center"><p className="text-sm font-semibold">Deficit</p><p className="num text-xs text-muted">{fmt(s.deficit ?? s.net)} kcal{s.targetDeficit !== null ? ` · target ${fmt(s.targetDeficit)}` : ""}</p></div>
+          <div className="text-center"><p className="text-sm font-semibold">Protein</p><p className="num text-xs text-muted">{fmt(s.protein, 1)}{t.protein ? ` / ${fmt(t.protein)}` : ""} g</p></div>
         </Card>
       </div>
 
-      <Card className="space-y-2">
-        <div className="flex items-baseline justify-between">
-          <p className="font-semibold">Protein</p>
-          <p className="num text-muted"><span className="text-lg font-semibold text-fg">{fmt(s.protein, 1)}</span>{t.protein ? ` / ${fmt(t.protein)}` : ""} g</p>
+      <Card className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="font-semibold">{s.deficit === null || s.deficit >= 0 ? "Deficit" : "Surplus"}</p>
+          <p className="num text-muted"><span className={cn("text-lg font-semibold", statusText[deficitStatus])}>{fmt(Math.abs(s.deficit ?? s.net))}</span> kcal{s.targetDeficit !== null ? ` · target ${fmt(s.targetDeficit)}` : ""}</p>
         </div>
-        <ProgressBar pct={s.proteinPct} status="ok" label="Protein progress" />
+        <NetBar net={s.net} target={hasTarget(t.netTarget) ? t.netTarget : null} status={deficitStatus} label="Net calories against your target" />
         <p className="num text-sm text-muted">
-          {s.proteinRemaining === null ? "No protein goal set" : s.proteinRemaining >= 0 ? `Remaining: ${fmt(s.proteinRemaining, 1)} g` : `${fmt(-s.proteinRemaining, 1)} g over your goal`}
-          {s.proteinPct !== null && ` · ${fmt(s.proteinPct)}%`}
+          Net {fmt(s.net)} kcal{s.net < 0 ? " (exercise is more than food)" : ""}
+          {s.netRemaining !== null && ` · ${s.netRemaining >= 0 ? `${fmt(s.netRemaining)} to target` : `${fmt(-s.netRemaining)} over target`}`}
         </p>
       </Card>
 
+      <NutrientGoalsCard nutrients={s.nutrients} goals={goals} />
+
       {macros.some(([, v]) => v > 0) && (
-        <Card className="grid grid-cols-4 gap-2 px-3">
+        <Card className="flex justify-around gap-2 px-3">
           {macros.map(([k, v]) => (<div key={k} className="text-center"><p className="num text-lg font-bold">{fmt(v, 1)}<span className="text-xs font-normal text-muted"> g</span></p><p className="text-xs text-muted">{k}</p></div>))}
         </Card>
       )}
@@ -92,6 +101,7 @@ export function HomeView() {
           </>)}
         </Card>
       )}
+      <GoalDeficitCard start={profile.goal_start_date} today={today} targets={t} />
       <p className="px-1 text-center text-xs text-muted">Calories and exercise are estimates. They can&apos;t measure body fat.</p>
     </>
   );

@@ -11,6 +11,25 @@ export type NutrientKey = (typeof NUTRIENTS)[number]["key"];
 export type Nutrients = Record<NutrientKey, number>;
 export const NUTRIENT_KEYS = NUTRIENTS.map((n) => n.key) as NutrientKey[];
 
+/** Optional daily goals in grams. A missing key means no goal for that nutrient. */
+export type NutrientGoals = Partial<Record<NutrientKey, number>>;
+
+/** "max" goals are limits to stay under. "min" goals are amounts to reach. */
+export const NUTRIENT_GOAL_KIND: Record<NutrientKey, "max" | "min"> = {
+  carbs: "max", sugar: "max", fat: "max", sat_fat: "max", fiber: "min", salt: "max",
+};
+
+/** Cleans whatever is stored in profiles.nutrient_goals. Anything not a positive number is dropped. */
+export function parseNutrientGoals(v: unknown): NutrientGoals {
+  const out: NutrientGoals = {};
+  if (!v || typeof v !== "object") return out;
+  for (const k of NUTRIENT_KEYS) {
+    const n = Number((v as Record<string, unknown>)[k]);
+    if (Number.isFinite(n) && n > 0) out[k] = n;
+  }
+  return out;
+}
+
 export const zeroNutrients = (): Nutrients => ({ carbs: 0, sugar: 0, fat: 0, sat_fat: 0, fiber: 0, salt: 0 });
 
 type Row = Record<string, unknown>;

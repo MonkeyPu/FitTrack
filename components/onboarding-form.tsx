@@ -5,7 +5,7 @@ import { AvatarUpload } from "@/components/avatar-upload";
 import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/field";
+import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { ESTIMATE_NOTE, targetWarnings } from "@/lib/safety";
 
 const STEPS = ["About you", "Maintenance", "Daily targets", "Your goal"];
@@ -15,7 +15,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
   const [step, setStep] = useState(0);
   const [err, setErr] = useState("");
   const [v, setV] = useState({
-    display_name: "", username: "", age: "", avatar_url: "", maintenance_calories: "",
+    display_name: "", username: "", age: "", height_cm: "", weight_kg: "", sex: "", avatar_url: "", maintenance_calories: "",
     max_food_calories: "", net_calorie_target: "", protein_goal: "",
     goal_description: "", goal_personal_target: "", goal_start_date: "", goal_target_date: "",
   });
@@ -27,6 +27,9 @@ export function OnboardingForm({ userId }: { userId: string }) {
     if (step === 0) {
       if (!v.display_name.trim()) return setErr("Enter a display name.");
       if (!/^[a-z0-9_]{3,20}$/i.test(v.username.trim())) return setErr("Username must be 3–20 letters, numbers or underscores.");
+      const h = num(v.height_cm), w = num(v.weight_kg);
+      if (v.height_cm !== "" && !(h >= 100 && h <= 250)) return setErr("Height should be between 100 and 250 cm.");
+      if (v.weight_kg !== "" && !(w >= 30 && w <= 300)) return setErr("Weight should be between 30 and 300 kg.");
     }
     if (step === 1) {
       const m = num(v.maintenance_calories);
@@ -61,6 +64,13 @@ export function OnboardingForm({ userId }: { userId: string }) {
           <Field label="Display name"><Input value={v.display_name} onChange={set("display_name")} maxLength={40} autoComplete="name" /></Field>
           <Field label="Username" hint="Friends find you by this. It must be unique."><Input value={v.username} onChange={set("username")} autoCapitalize="none" autoCorrect="off" maxLength={20} /></Field>
           <Field label="Age (optional)"><Input value={v.age} onChange={set("age")} type="number" inputMode="numeric" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Height (optional)" hint="cm"><Input value={v.height_cm} onChange={set("height_cm")} type="number" inputMode="decimal" step="any" placeholder="e.g. 175" /></Field>
+            <Field label="Weight (optional)" hint="kg"><Input value={v.weight_kg} onChange={set("weight_kg")} type="number" inputMode="decimal" step="any" placeholder="e.g. 70" /></Field>
+          </div>
+          <Field label="Sex (optional)" hint="Height, weight, age and sex are only used to estimate calories burned in cardio. Skip any time and add them later in Settings.">
+            <Select value={v.sex} onChange={(e) => setV((o) => ({ ...o, sex: e.target.value }))}><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option></Select>
+          </Field>
         </>)}
 
         {step === 1 && (<>

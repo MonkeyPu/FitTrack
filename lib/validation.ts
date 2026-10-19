@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { ACTIVITY_PRESETS, CALORIE_SOURCES } from "@/lib/types";
+import { INTENSITIES } from "@/lib/cardio";
+import { NUTRIENT_KEYS, type NutrientKey } from "@/lib/nutrition";
 
 const emptyToUndef = (v: unknown) => (v === "" || v === null ? undefined : v);
 
@@ -52,6 +54,19 @@ export const checkGoalDates = (v: { goal_start_date?: string; goal_target_date?:
   !v.goal_start_date || !v.goal_target_date || v.goal_target_date >= v.goal_start_date;
 const goalDatesMsg = { message: "Target date must be on or after the start date", path: ["goal_target_date"] };
 
+/** Optional. Blank means "not set". */
+export const bodyShape = {
+  height_cm: optNum(100, 250, "height"),
+  weight_kg: optNum(30, 300, "weight"),
+  sex: z.preprocess(emptyToUndef, z.enum(["male", "female"]).optional()),
+};
+export const bodySchema = z.object({ age: optNum(10, 100, "age"), ...bodyShape });
+
+/** goal_carbs, goal_sugar, ... all optional, in grams. */
+export const nutrientGoalsSchema = z.object(
+  Object.fromEntries(NUTRIENT_KEYS.map((k) => [`goal_${k}`, optNum(0, 2000, `${k.replace("_", " ")} goal`)])) as Record<`goal_${NutrientKey}`, ReturnType<typeof optNum>>,
+);
+
 export const targetsSchema = z.object(targetsShape);
 export const goalSchema = z.object(goalShape).refine(checkGoalDates, goalDatesMsg);
 export const accountSchema = z.object({
@@ -63,6 +78,7 @@ export const onboardingSchema = z
   .object({
     ...accountSchema.shape,
     age: optNum(10, 100, "age"),
+    ...bodyShape,
     ...targetsShape,
     ...goalShape,
   })
@@ -107,6 +123,7 @@ export const activitySchema = z.object({
   duration_minutes: reqNum(1, 1440, "duration"),
   calories_burned: reqNum(0, 10000, "calories burned"),
   calorie_source: z.enum(CALORIE_SOURCES.map((s) => s.value) as [string, ...string[]]),
+  intensity: z.preprocess(emptyToUndef, z.enum(INTENSITIES.map((i) => i.value) as [string, ...string[]]).optional()),
   notes: optText(500),
   log_date: dateStr,
   logged_at: z.string().datetime({ message: "Choose a valid time" }),

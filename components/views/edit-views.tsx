@@ -48,5 +48,5 @@ export function EditActivityView({ id }: { id: string }) {
   if (q.isPending && !q.data) return <PageSkeleton />;
   const l = q.data as ActivityLog | null | undefined;
   if (!l) return <Missing />;
-  return <ActivityForm key={l.id} initial={{ id: l.id, date: l.log_date, name: l.activity_name, type: l.activity_type, duration: l.duration_minutes, cal: Number(l.calories_burned), source: l.calorie_source, notes: l.notes ?? "", time: timeInTz(l.logged_at, tz) }} />;
+  return <ActivityForm key={l.id} initial={{ id: l.id, date: l.log_date, name: l.activity_name, type: l.activity_type, duration: l.duration_minutes, cal: Number(l.calories_burned), source: l.calorie_source, intensity: l.intensity, notes: l.notes ?? "", time: timeInTz(l.logged_at, tz) }} />;
 }
