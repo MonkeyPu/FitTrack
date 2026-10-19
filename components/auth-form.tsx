@@ -1,10 +1,11 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { changePassword, requestPasswordReset, signIn, signUp } from "@/app/actions/auth";
 import { FormMessage } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, Input } from "@/components/ui/field";
+import { clearAllPersisted } from "@/lib/client/persist";
 
 const modes = {
   login: { action: signIn, title: "Welcome back", cta: "Log in" },
@@ -16,6 +17,8 @@ const modes = {
 export function AuthForm({ mode, notice }: { mode: keyof typeof modes; notice?: string }) {
   const m = modes[mode];
   const [state, action] = useActionState(m.action, {});
+  // Nobody is signed in here, so make sure no saved copy of anyone's data stays on this device.
+  useEffect(() => { if (mode === "login" || mode === "signup") clearAllPersisted(); }, [mode]);
   return (
     <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5 py-10">
       <h1 className="mb-1 text-3xl font-bold tracking-tight">{m.title}</h1>

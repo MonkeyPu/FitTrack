@@ -85,7 +85,7 @@ export function PrivacyForm({ profile }: { profile: Profile }) {
   const p = profile.privacy_settings;
   return (
     <form action={action}>
-      <p className="mb-1 text-sm text-muted">Everything stays private until you turn it on. Friends never see your email or notes.</p>
+      <p className="mb-1 text-sm text-muted">These are the defaults for all your friends. Everything stays private until you turn it on, and friends never see your email or notes. You can choose different settings for individual friends in Manage friends.</p>
       <div className="divide-y divide-line">
         <Toggle name="share_summary" label="Daily nutrition summary" hint="Calories and protein for each day" defaultChecked={p.share_summary} />
         <Toggle name="share_exercise" label="Exercise" hint="Logged cardio and calories burned" defaultChecked={p.share_exercise} />

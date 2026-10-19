@@ -100,3 +100,7 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .splash[data-done] { opacity: 0; visibility: hidden; pointer-events: none; }
 @keyframes splash-failsafe { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 @media (prefers-reduced-motion: reduce) { .splash { animation: splash-failsafe 0s linear 8s forwards !important; } }
+
+/* Page transition: a short fade as a tab opens */
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.page-in { animation: page-in 0.18s ease-out backwards; }

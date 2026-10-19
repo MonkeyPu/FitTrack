@@ -71,6 +71,21 @@ describe("summarize", () => {
   });
 });
 
+describe("nutrient totals", () => {
+  it("adds carbs, sugar and fat across food and meal entries, ignoring entries without them", () => {
+    const s = summarize(
+      [{ total_calories: 100, total_protein: 5, total_carbs: 20, total_sugar: 4 }, { total_calories: 50, total_protein: 0 }],
+      [{ total_calories: 300, total_protein: 10, total_carbs: 40, total_fat: 12 }],
+      [],
+      targets,
+    );
+    expect(s.nutrients.carbs).toBe(60);
+    expect(s.nutrients.sugar).toBe(4);
+    expect(s.nutrients.fat).toBe(12);
+    expect(s.nutrients.salt).toBe(0);
+  });
+});
+
 describe("deficit", () => {
   const day = (food: number, burned: number) =>
     summarize([{ total_calories: food, total_protein: 0 }], [], [{ calories_burned: burned }], targets);

@@ -38,10 +38,10 @@ beforeAll(async () => {
     alter default privileges in schema public grant all on tables to anon, authenticated;
     alter default privileges in schema public grant all on functions to anon, authenticated;
   `);
-  for (const f of ["0001_schema.sql", "0002_rls.sql", "0003_friends.sql"]) await db.exec(sql(f));
+  for (const f of ["0001_schema.sql", "0002_rls.sql", "0003_friends.sql", "0004_nutrients_and_friend_permissions.sql"]) await db.exec(sql(f));
 
   // Fixtures (inserted as superuser). Users A, B, C plus 20 extras for rate limiting.
-  for (let i = 1; i <= 23; i++) {
+  for (let i = 1; i <= 30; i++) {
     await db.exec(`insert into auth.users (id) values ('${U(i)}');
       insert into public.profiles (id, username, display_name, onboarded, maintenance_calories, max_food_calories, net_calorie_target, protein_goal, goal_description, goal_target_date)
       values ('${U(i)}', 'user${i}', 'User ${i}', true, 2600, 2000, 1700, 120, 'Secret goal ${i}', '2026-12-31');`);
@@ -204,5 +204,84 @@ describe("search and abuse protection", () => {
       await q(`delete from public.friendships where requester_id = '${C}'`);
       await expect(q(`insert into public.friendships (requester_id, recipient_id) values ('${C}', '${U(20)}')`)).rejects.toThrow(/Too many/);
     });
+  });
+});
+
+describe("nutrients", () => {
+  it("generates totals from servings x per-serving values", async () => {
+    await db.exec(`insert into public.food_logs (user_id, food_name_snapshot, servings, calories_per_serving, carbs_per_serving, sugar_per_serving, fat_per_serving, log_date)
+      values ('${U(24)}', 'Oats', 2, 150, 30, 5, 3, '${DAY}');
+      insert into public.meal_logs (user_id, meal_name_snapshot, servings, calories_per_serving, carbs_per_serving, notes, log_date)
+      values ('${U(24)}', 'Combo', 2, 100, 10, 'combo note', '${DAY}');`);
+    const f = (await q(`select * from public.food_logs where user_id = '${U(24)}'`))[0];
+    expect(Number(f.total_carbs)).toBe(60);
+    expect(Number(f.total_sugar)).toBe(10);
+    expect(Number(f.total_fat)).toBe(6);
+    const m = (await q(`select * from public.meal_logs where user_id = '${U(24)}'`))[0];
+    expect(Number(m.total_carbs)).toBe(20);
+  });
+  it("rejects negative or absurd nutrient values", async () => {
+    await asUser(U(24), async () => {
+      await expect(q(`insert into public.foods (user_id, name, calories_per_serving, sugar_per_serving) values ('${U(24)}', 'x', 1, -5)`)).rejects.toThrow();
+      await expect(q(`insert into public.foods (user_id, name, calories_per_serving, carbs_per_serving) values ('${U(24)}', 'x', 1, 5000)`)).rejects.toThrow();
+    });
+  });
+});
+
+describe("per-friend sharing", () => {
+  const [OWNER, F1, F2, F3, STRANGER] = [U(25), U(26), U(27), U(28), U(29)];
+  const befriend = (a: string, b: string) => db.exec(`insert into public.friendships (requester_id, recipient_id, status) values ('${a}', '${b}', 'accepted')`);
+  const card = (viewer: string) => asUser(viewer, async () => (await q(`select * from public.friend_cards('${DAY}')`))[0]);
+
+  beforeAll(async () => {
+    for (const f of [F1, F2, F3]) await befriend(OWNER, f);
+    await db.exec(`insert into public.food_logs (user_id, food_name_snapshot, servings, calories_per_serving, carbs_per_serving, log_date)
+      values ('${OWNER}', 'Pasta', 1, 700, 90, '${DAY}');
+      insert into public.activity_logs (user_id, activity_name, duration_minutes, calories_burned, log_date) values ('${OWNER}', 'Run', 30, 300, '${DAY}');`);
+  });
+
+  it("defaults apply when no per-friend row exists", async () => {
+    expect((await card(F1)).food_calories).toBeNull();
+    await db.exec(`update public.profiles set privacy_settings = '{"share_summary":true,"share_exercise":false,"share_history":false,"share_goal":false}' where id = '${OWNER}'`);
+    const c = await card(F1);
+    expect(Number(c.food_calories)).toBe(700);
+    expect(Number(c.carbs)).toBe(90);
+    expect(c.exercise_calories).toBeNull();
+  });
+
+  it("an override can hide data from one friend while others keep the default", async () => {
+    await asUser(OWNER, () => q(`insert into public.friend_permissions (owner_id, friend_id, share_summary, share_exercise, share_history, share_goal) values ('${OWNER}', '${F2}', false, false, false, false)`));
+    expect((await card(F2)).food_calories).toBeNull();
+    expect(Number((await card(F1)).food_calories)).toBe(700);
+    expect(Number((await card(F3)).food_calories)).toBe(700);
+  });
+
+  it("an override can share more with one friend than the default", async () => {
+    await asUser(OWNER, () => q(`insert into public.friend_permissions (owner_id, friend_id, share_summary, share_exercise, share_history, share_goal) values ('${OWNER}', '${F3}', true, true, true, false)`));
+    expect(Number((await card(F3)).exercise_calories)).toBe(300);
+    expect((await card(F1)).exercise_calories).toBeNull();
+    const hist = await asUser(F3, () => q(`select * from public.friend_history('${OWNER}', '2026-10-01', '2026-10-31')`));
+    expect(hist).toHaveLength(1);
+    expect(await asUser(F1, () => q(`select * from public.friend_history('${OWNER}', '2026-10-01', '2026-10-31')`))).toHaveLength(0);
+  });
+
+  it("friends cannot read or write the owner's sharing settings", async () => {
+    await asUser(F3, async () => {
+      expect(await q("select * from public.friend_permissions")).toHaveLength(0);
+      expect(await q(`update public.friend_permissions set share_goal = true where owner_id = '${OWNER}' returning owner_id`)).toHaveLength(0);
+    });
+  });
+
+  it("settings can only be created for accepted friends", async () => {
+    await asUser(OWNER, async () => {
+      await expect(q(`insert into public.friend_permissions (owner_id, friend_id, share_summary, share_exercise, share_history, share_goal) values ('${OWNER}', '${STRANGER}', true, true, true, true)`)).rejects.toThrow();
+    });
+  });
+
+  it("ending the friendship removes the per-friend settings", async () => {
+    await asUser(OWNER, () => q(`delete from public.friendships where requester_id = '${OWNER}' and recipient_id = '${F3}'`));
+    await db.exec("reset role;");
+    expect(await q(`select * from public.friend_permissions where owner_id = '${OWNER}' and friend_id = '${F3}'`)).toHaveLength(0);
+    expect(await q(`select * from public.friend_permissions where owner_id = '${OWNER}' and friend_id = '${F2}'`)).toHaveLength(1);
   });
 });

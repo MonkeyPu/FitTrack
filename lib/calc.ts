@@ -25,7 +25,9 @@ export const targetsOf = (p: TargetSource): Targets => ({
   protein: p.protein_goal,
 });
 
-export type FoodLike = { total_calories: number; total_protein: number };
+import { addNutrients, readTotals, zeroNutrients, type Nutrients } from "./nutrition";
+
+export type FoodLike = { total_calories: number; total_protein: number } & Partial<Record<`total_${keyof Nutrients}`, number>>;
 export type ActivityLike = { calories_burned: number };
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -55,6 +57,8 @@ export function statusOf(pct: number | null): Status {
 export type DaySummary = {
   foodCalories: number;
   protein: number;
+  /** carbs, sugar, fat, saturated fat, fiber, salt (grams) */
+  nutrients: Nutrients;
   exerciseCalories: number;
   /** food calories minus logged exercise calories */
   net: number;
@@ -79,6 +83,7 @@ export function summarize(
   const entries = [...foodLogs, ...mealLogs];
   const foodCalories = sum(entries.map((e) => e.total_calories));
   const protein = sum(entries.map((e) => e.total_protein));
+  const nutrients = entries.reduce((acc, e) => addNutrients(acc, readTotals(e)), zeroNutrients());
   const exerciseCalories = sum(activityLogs.map((a) => a.calories_burned));
   // Exercise is subtracted exactly once, here. It never raises the food maximum.
   const net = foodCalories - exerciseCalories;
@@ -86,6 +91,7 @@ export function summarize(
   return {
     foodCalories,
     protein,
+    nutrients,
     exerciseCalories,
     net,
     deficit: hasTarget(targets.maintenance) ? targets.maintenance - net : null,

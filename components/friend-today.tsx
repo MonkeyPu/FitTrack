@@ -30,6 +30,11 @@ export function FriendToday({ c }: { c: FriendCardData }) {
         </div>
         <ProgressBar pct={s.proteinPct} status="ok" label={`${c.display_name} protein`} />
       </div>
+      {(c.carbs ?? 0) + (c.sugar ?? 0) + (c.fat ?? 0) > 0 && (
+        <div className="num flex justify-between text-sm">
+          <span className="text-muted">Carbs · Sugar · Fat</span><span>{fmt(c.carbs ?? 0, 1)} · {fmt(c.sugar ?? 0, 1)} · {fmt(c.fat ?? 0, 1)} g</span>
+        </div>
+      )}
       {c.share_exercise && (
         <div className="num flex justify-between text-sm">
           <span className="text-muted">Exercise (est.)</span><span>{fmt(s.exerciseCalories)} kcal</span>

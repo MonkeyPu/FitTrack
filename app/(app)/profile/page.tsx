@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { ChevronRight, Library, LogOut, Users, type LucideIcon } from "lucide-react";
-import { signOut } from "@/app/actions/auth";
+import { ChevronRight, Library, Users, type LucideIcon } from "lucide-react";
+import { LogoutButton } from "@/components/logout-button";
 import { Avatar } from "@/components/avatar";
-import { Button } from "@/components/ui/button";
 import { requireProfile } from "@/lib/data";
 import { SETTINGS_SECTIONS } from "@/lib/settings-sections";
 
@@ -39,7 +38,7 @@ export default async function Page() {
         <Row href="/friends" icon={Users} title="Friends" sub="Requests and your friends list" />
       </Group>
 
-      <form action={signOut}><Button type="submit" variant="secondary" className="w-full"><LogOut className="h-4 w-4" />Log out</Button></form>
+      <LogoutButton />
     </>
   );
 }

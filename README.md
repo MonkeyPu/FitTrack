@@ -2,7 +2,7 @@
 
 Mobile-first calorie, protein and cardio tracker for friends. Next.js (App Router, TypeScript), Tailwind, Supabase (Postgres, Auth, Row Level Security), deployable on Vercel. Installable on iPhone as a PWA.
 
-## What's built (phases 1–4)
+## What's built
 
 - Sign up, log in, log out, password reset, persistent sessions (Supabase Auth, cookie sessions via middleware)
 - 4-step onboarding: profile (name, unique username, optional picture, age), maintenance calories, daily targets, goal and target date
@@ -17,6 +17,12 @@ Mobile-first calorie, protein and cardio tracker for friends. Next.js (App Route
 - Privacy toggles (daily summary, exercise, history, goal) that are enforced in the database, not the UI
 - Calendar: tap the date at the top of Home or Diary to open a month calendar (month and year arrows, jump to Today)
 - Game-style moments: a full-screen "chud" game-over screen when you pass your food limit, and confetti when you hit your protein goal, stay within your limit for the day (checked from 9pm and again the next morning) or reach your goal date. Each shows once per day per device, and can be turned off in Profile → Preferences
+- More nutrients: carbs, sugar, fat, saturated fat, fiber and salt on foods, meals and entries, with daily totals
+- Ingredients: add ingredients to any food while logging (protein powder in yoghurt). It is stored as a combined entry that can be expanded and edited
+- Manage friends: remove friends and choose, per friend, what they can see (daily nutrition, exercise, history, goal). Your Privacy settings are the default for everyone else
+- One date bar on Home, Diary, Add and Friends. The date you pick stays when you switch tabs, and Friends shows that date too
+- Fast, app-like feel: your data is loaded onto the phone, tabs switch without waiting, and saves show up instantly (and roll back with a message if they fail). Saving is refused while offline so nothing is silently lost
+- iPhone launch screen, shown instantly when opened from the Home Screen
 - Database schema, indexes and RLS policies for every table
 - All calculations live in `lib/calc.ts` with unit tests (`npm test`)
 
@@ -26,7 +32,7 @@ Not yet built: your own history charts and statistics, offline/service worker, p
 
 ### 1. Supabase
 1. Create a project at supabase.com.
-2. SQL editor: open each file, copy its contents, paste and run, in order: `0001_schema.sql`, `0002_rls.sql`, `0003_friends.sql`. (Or use the Supabase CLI: `supabase link` then `supabase db push`.)
+2. SQL editor: open each file, copy its contents, paste and run, in order: `0001_schema.sql`, `0002_rls.sql`, `0003_friends.sql`, `0004_nutrients_and_friend_permissions.sql`. (Or use the Supabase CLI: `supabase link` then `supabase db push`.)
 3. Authentication → URL Configuration: set **Site URL** to your production URL and add these **Redirect URLs**:
    - `http://localhost:3000/auth/callback`
    - `https://YOUR-APP.vercel.app/auth/callback`
@@ -84,8 +90,17 @@ Open the site in Safari → Share → **Add to Home Screen**.
 ## Health note
 Calorie targets and maintenance numbers are estimates. The app warns on very low or aggressive targets and never claims to measure body fat.
 
+## How the app stays fast
+- The server only checks you are signed in and finished onboarding. Everything else is fetched by the browser straight from Supabase and kept in a cache (TanStack Query), saved on the device in IndexedDB so the app opens with your last data.
+- Your own data is cached per user and wiped on log out and on the login screen. Friends' data and one-off lookups are never saved on the device.
+- Reads and writes go straight to Supabase from the browser. Row Level Security and the database's check constraints protect and validate the data; friend data is only reachable through the permission-checked functions. Account deletion and data export still run on the server.
+- Saving needs a connection. Offline, you can still read cached data, but saves are refused with a message.
+
 ## Known limitations
-- Mutations use server actions with pending states and duplicate-submit protection; full optimistic UI and offline queuing are planned for phase 5.
+- Offline saving (a queue that syncs later) is not built; saves are refused while offline.
+- Existing foods and entries have 0 for the new nutrients (shown as not recorded).
+- Friend cards show net calories rather than deficit, because maintenance calories are never shared.
+- Launch images cover current iPhone sizes; other devices fall back to a plain screen.
 - Units are fixed to kcal and grams; the default diary date is always today.
 - Friend comparisons use your viewing date for "today", so a friend in a very different timezone may show a slightly different "today".
 - This code was type-checked, unit-tested and production-built, but the database logic is tested in an in-memory Postgres but it has not been run against a live Supabase project or tested on a physical iPhone. Do a first pass through sign-up → onboarding → log food/meal/cardio → edit/delete before sharing it.

@@ -24,7 +24,19 @@ export type Profile = {
   onboarded: boolean;
 };
 
-export type Food = {
+export type PerServingCols = {
+  carbs_per_serving: number; sugar_per_serving: number; fat_per_serving: number;
+  sat_fat_per_serving: number; fiber_per_serving: number; salt_per_serving: number;
+};
+export type SnapshotCols = {
+  carbs_per_serving_snapshot: number; sugar_per_serving_snapshot: number; fat_per_serving_snapshot: number;
+  sat_fat_per_serving_snapshot: number; fiber_per_serving_snapshot: number; salt_per_serving_snapshot: number;
+};
+export type TotalCols = {
+  total_carbs: number; total_sugar: number; total_fat: number; total_sat_fat: number; total_fiber: number; total_salt: number;
+};
+
+export type Food = PerServingCols & {
   id: string;
   name: string;
   calories_per_serving: number;
@@ -32,7 +44,7 @@ export type Food = {
   serving_description: string | null;
 };
 
-export type MealItem = {
+export type MealItem = SnapshotCols & {
   id: string;
   meal_id: string;
   food_id: string | null;
@@ -45,7 +57,7 @@ export type MealItem = {
 
 export type Meal = { id: string; name: string; meal_items: MealItem[] };
 
-export type FoodLog = {
+export type FoodLog = PerServingCols & TotalCols & {
   id: string;
   food_id: string | null;
   food_name_snapshot: string;
@@ -60,7 +72,7 @@ export type FoodLog = {
   log_date: string;
 };
 
-export type MealLogItem = {
+export type MealLogItem = SnapshotCols & {
   id: string;
   food_name_snapshot: string;
   serving_description_snapshot: string | null;
@@ -69,7 +81,8 @@ export type MealLogItem = {
   protein_per_serving_snapshot: number;
 };
 
-export type MealLog = {
+export type MealLog = PerServingCols & TotalCols & {
+  notes: string | null;
   id: string;
   meal_id: string | null;
   meal_name_snapshot: string;
@@ -124,6 +137,9 @@ export type FriendCardData = {
   share_history: boolean;
   food_calories: number | null;
   protein: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  fat: number | null;
   exercise_calories: number | null;
   max_food_calories: number | null;
   protein_goal: number | null;
@@ -145,3 +161,5 @@ export type FriendshipRow = {
 };
 
 export type DayTotals = { date: string; food: number; protein: number; exercise: number | null };
+
+export type FriendPerms = { friend_id: string; share_summary: boolean; share_exercise: boolean; share_history: boolean; share_goal: boolean };
