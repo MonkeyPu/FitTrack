@@ -23,6 +23,7 @@ Mobile-first calorie, protein and cardio tracker for friends. Next.js (App Route
 - One date bar on Home, Diary, Add and Friends. The date you pick stays when you switch tabs, and Friends shows that date too
 - Fast, app-like feel: your data is loaded onto the phone, tabs switch without waiting, and saves show up instantly (and roll back with a message if they fail). Saving is refused while offline so nothing is silently lost
 - iPhone launch screen, shown instantly when opened from the Home Screen
+- Supermarket catalog: search Mercadona (and Carrefour, Dia, Lidl, Alcampo, Eroski, Aldi, Consum, or all of Spain) by name or barcode, pick an amount in g or ml, and fill a food or an ingredient. Data comes from Open Food Facts (ODbL), searched through the app's server with caching
 - Database schema, indexes and RLS policies for every table
 - All calculations live in `lib/calc.ts` with unit tests (`npm test`)
 
@@ -89,6 +90,12 @@ Open the site in Safari → Share → **Add to Home Screen**.
 
 ## Health note
 Calorie targets and maintenance numbers are estimates. The app warns on very low or aggressive targets and never claims to measure body fat.
+
+## Supermarket catalog
+- Source: [Open Food Facts](https://world.openfoodfacts.org), an open database filled in by volunteers. Coverage of Mercadona is good but not complete, and individual values can be wrong. The app warns when values look inconsistent.
+- Searches go through `/api/catalog/search` (signed-in users only). Results are cached for a day and each person is limited to 8 searches a minute, to stay inside Open Food Facts' limit of 10 searches a minute.
+- Optional: set `OFF_CONTACT_EMAIL` in Vercel so Open Food Facts can contact you. Without it your site URL is used.
+- Foods you pick are copied into your own entries and saved foods. Attribution to Open Food Facts is shown in the catalog.
 
 ## How the app stays fast
 - The server only checks you are signed in and finished onboarding. Everything else is fetched by the browser straight from Supabase and kept in a cache (TanStack Query), saved on the device in IndexedDB so the app opens with your last data.

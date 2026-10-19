@@ -1,8 +1,9 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, Store, X } from "lucide-react";
 import { useApp } from "@/components/app-context";
+import { CatalogPicker } from "@/components/catalog-picker";
 import { DateTimeFields } from "@/components/datetime-fields";
 import { NutrientFields } from "@/components/nutrient-fields";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { useSaveEntry, type ItemInput } from "@/lib/client/mutations";
 import { FormError, parseNum, parseText } from "@/lib/client/validate";
 import { emptyNutrientStrings, NUTRIENT_KEYS, NUTRIENTS, readNutrients, sumItems, toNutrientStrings, type NutrientKey, type NutrientStrings } from "@/lib/nutrition";
 import { fmt } from "@/lib/utils";
+import type { PickedFood } from "@/lib/catalog";
 import type { Food } from "@/lib/types";
 
 export type FormRow = { key: string; food_id: string | null; name: string; serving: string; cal: string; protein: string; qty: string; nutrients: NutrientStrings };
@@ -24,6 +26,9 @@ const labels = Object.fromEntries(NUTRIENTS.map((n) => [n.key, n.label]));
 const rowFromFood = (f: Food): FormRow => ({
   key: crypto.randomUUID(), food_id: f.id, name: f.name, serving: f.serving_description ?? "", cal: String(f.calories_per_serving),
   protein: String(f.protein_per_serving), qty: "1", nutrients: toNutrientStrings(readNutrients(f as unknown as Record<string, unknown>)),
+});
+const rowFromPicked = (p: PickedFood): FormRow => ({
+  key: crypto.randomUUID(), food_id: null, name: p.name, serving: p.serving, cal: String(p.calories), protein: String(p.protein), qty: "1", nutrients: toNutrientStrings(p.nutrients),
 });
 const blankRow = (): FormRow => ({ key: crypto.randomUUID(), food_id: null, name: "", serving: "", cal: "", protein: "", qty: "1", nutrients: emptyNutrientStrings() });
 
@@ -53,6 +58,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
   const [comboTouched, setComboTouched] = useState(Boolean(initial?.comboName));
   const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [query, setQuery] = useState("");
+  const [catalogFor, setCatalogFor] = useState<"main" | "extra" | null>(null);
   const [error, setError] = useState("");
   const sent = useRef(false);
 
@@ -122,6 +128,10 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
         </div>
       )}
 
+      {!quick && (
+        <Button type="button" variant="secondary" className="w-full" onClick={() => setCatalogFor("main")}><Store className="h-4 w-4" />Search supermarket catalog</Button>
+      )}
+
       <Field label="Food name"><Input value={main.name} onChange={(e) => setM({ name: e.target.value })} maxLength={100} /></Field>
       {!quick && <Field label="Serving size" hint="Optional, e.g. 1 pot (125 g)"><Input value={main.serving} onChange={(e) => setM({ serving: e.target.value })} maxLength={100} /></Field>}
       <div className="grid grid-cols-2 gap-3">
@@ -156,6 +166,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
             )}
             <Button type="button" variant="secondary" className={foods.length === 0 ? "col-span-2" : ""} onClick={() => setExtras((l) => [...l, blankRow()])}><Plus className="h-4 w-4" />Custom ingredient</Button>
           </div>
+          <Button type="button" variant="secondary" className="w-full" onClick={() => setCatalogFor("extra")}><Store className="h-4 w-4" />Ingredient from supermarket catalog</Button>
         </div>
       )}
 
@@ -179,6 +190,17 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
 
       {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <Button type="submit" className="w-full">{editing ? "Save changes" : "Add to diary"}</Button>
+
+      {catalogFor && (
+        <CatalogPicker
+          onClose={() => setCatalogFor(null)}
+          onPick={(p) => {
+            if (catalogFor === "main") setMain((m) => ({ ...rowFromPicked(p), key: m.key, qty: m.qty }));
+            else setExtras((l) => [...l, rowFromPicked(p)]);
+            setCatalogFor(null);
+          }}
+        />
+      )}
     </form>
   );
 }

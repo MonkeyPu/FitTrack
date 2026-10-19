@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Store } from "lucide-react";
+import { CatalogPicker } from "@/components/catalog-picker";
 import { NutrientFields } from "@/components/nutrient-fields";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
@@ -19,6 +21,7 @@ export function FoodLibraryForm({ food }: { food?: Food }) {
   const [cal, setCal] = useState(food ? String(food.calories_per_serving) : "");
   const [protein, setProtein] = useState(food ? String(food.protein_per_serving) : "");
   const [nutrients, setNutrients] = useState(food ? toNutrientStrings(readNutrients(food as unknown as Record<string, unknown>)) : emptyNutrientStrings());
+  const [catalog, setCatalog] = useState(false);
   const [error, setError] = useState("");
 
   function submit(e: React.FormEvent) {
@@ -40,6 +43,7 @@ export function FoodLibraryForm({ food }: { food?: Food }) {
 
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
+      <Button type="button" variant="secondary" className="w-full" onClick={() => setCatalog(true)}><Store className="h-4 w-4" />Import from supermarket catalog</Button>
       <Field label="Food name"><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} /></Field>
       <Field label="Serving size" hint="Optional, e.g. 1 slice or 250 ml"><Input value={serving} onChange={(e) => setServing(e.target.value)} maxLength={100} /></Field>
       <div className="grid grid-cols-2 gap-3">
@@ -50,6 +54,15 @@ export function FoodLibraryForm({ food }: { food?: Food }) {
       <p className="text-sm text-muted">Changing a saved food won&apos;t change entries you&apos;ve already logged.</p>
       {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <Button type="submit" className="w-full" disabled={save.isPending}>{food ? "Save changes" : "Save food"}</Button>
+      {catalog && (
+        <CatalogPicker
+          onClose={() => setCatalog(false)}
+          onPick={(p) => {
+            setName(p.name); setServing(p.serving); setCal(String(p.calories)); setProtein(String(p.protein)); setNutrients(toNutrientStrings(p.nutrients));
+            setCatalog(false);
+          }}
+        />
+      )}
     </form>
   );
 }
