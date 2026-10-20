@@ -23,6 +23,11 @@ export function DiaryView() {
     ["Eaten", fmt(s.foodCalories), "kcal"], ["Protein", fmt(s.protein, 1), "g"],
     ["Exercise (est.)", fmt(s.exerciseCalories), "kcal"], ["Deficit", s.deficit === null ? "—" : fmt(s.deficit), "kcal"],
   ];
+  // Foods and foods with ingredients share one list, in the order they were eaten.
+  const meals = [
+    ...day.data.foods.map((log) => ({ kind: "food" as const, log })),
+    ...day.data.meals.map((log) => ({ kind: "meal" as const, log })),
+  ].sort((a, b) => a.log.logged_at.localeCompare(b.log.logged_at));
   const hasNutrients = NUTRIENTS.some((n) => s.nutrients[n.key] > 0);
 
   return (
@@ -36,10 +41,9 @@ export function DiaryView() {
         </Card>
       )}
       <Section title="Food" action={add("/add/food", "Add food")}>
-        <Card className="px-0 py-1">{day.data.foods.length === 0 ? <p className="px-4 py-4 text-sm text-muted">No food logged.</p> : day.data.foods.map((l) => <FoodEntry key={l.id} log={l} tz={tz} />)}</Card>
-      </Section>
-      <Section title="Meals" action={add("/add/meal", "Add meal")}>
-        <Card className="px-0 py-1">{day.data.meals.length === 0 ? <p className="px-4 py-4 text-sm text-muted">No meals or combinations logged.</p> : day.data.meals.map((l) => <MealEntry key={l.id} log={l} tz={tz} />)}</Card>
+        <Card className="px-0 py-1">
+          {meals.length === 0 ? <p className="px-4 py-4 text-sm text-muted">No food logged.</p> : meals.map((e) => (e.kind === "food" ? <FoodEntry key={e.log.id} log={e.log} tz={tz} /> : <MealEntry key={e.log.id} log={e.log} tz={tz} />))}
+        </Card>
       </Section>
       <Section title="Exercise" action={add("/add/cardio", "Add cardio")}>
         <Card className="px-0 py-1">{day.data.activities.length === 0 ? <p className="px-4 py-4 text-sm text-muted">No exercise logged. Calories burned are estimates.</p> : day.data.activities.map((l) => <ActivityEntry key={l.id} log={l} tz={tz} />)}</Card>

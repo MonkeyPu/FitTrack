@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/components/app-context";
 import { createClient } from "@/lib/supabase/client";
-import { fetchDay, fetchFoods, fetchGoalTotals, fetchFriendCards, fetchFriendHistory, fetchFriendPerms, fetchFriendships, fetchHistory, fetchLog, fetchMeals, searchProfiles, type DayData } from "@/lib/client/api";
+import { fetchDay, fetchFoods, fetchGoalTotals, fetchFriendCards, fetchFriendHistory, fetchFriendPerms, fetchFriendships, fetchHistory, fetchLog, searchProfiles, type DayData } from "@/lib/client/api";
 import { qk } from "@/lib/client/keys";
 
 export const useSupabase = () => useMemo(() => createClient(), []);
@@ -18,12 +18,6 @@ export function useFoods() {
   const sb = useSupabase();
   const { userId } = useApp();
   return useQuery({ queryKey: qk.foods, queryFn: () => fetchFoods(sb, userId), staleTime: 60_000 });
-}
-
-export function useMeals() {
-  const sb = useSupabase();
-  const { userId } = useApp();
-  return useQuery({ queryKey: qk.meals, queryFn: () => fetchMeals(sb, userId), staleTime: 60_000 });
 }
 
 export function useHistory(from: string, to: string) {

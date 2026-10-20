@@ -16,7 +16,7 @@ export type Profile = {
   height_cm: number | null;
   weight_kg: number | null;
   sex: "male" | "female" | null;
-  /** Optional daily goals for carbs, sugar, fat, sat_fat, fiber, salt (grams). Empty = none set. */
+  /** Optional daily goals for carbs, sugar, added_sugar, fat, sat_fat, fiber (grams). Empty = none set. */
   nutrient_goals: NutrientGoals;
   maintenance_calories: number | null;
   max_food_calories: number | null;
@@ -33,14 +33,14 @@ export type Profile = {
 
 export type PerServingCols = {
   carbs_per_serving: number; sugar_per_serving: number; fat_per_serving: number;
-  sat_fat_per_serving: number; fiber_per_serving: number; salt_per_serving: number;
+  sat_fat_per_serving: number; fiber_per_serving: number; added_sugar_per_serving: number;
 };
 export type SnapshotCols = {
   carbs_per_serving_snapshot: number; sugar_per_serving_snapshot: number; fat_per_serving_snapshot: number;
-  sat_fat_per_serving_snapshot: number; fiber_per_serving_snapshot: number; salt_per_serving_snapshot: number;
+  sat_fat_per_serving_snapshot: number; fiber_per_serving_snapshot: number; added_sugar_per_serving_snapshot: number;
 };
 export type TotalCols = {
-  total_carbs: number; total_sugar: number; total_fat: number; total_sat_fat: number; total_fiber: number; total_salt: number;
+  total_carbs: number; total_sugar: number; total_fat: number; total_sat_fat: number; total_fiber: number; total_added_sugar: number;
 };
 
 export type Food = PerServingCols & {
@@ -110,7 +110,12 @@ export type ActivityLog = {
   duration_minutes: number;
   calories_burned: number;
   calorie_source: string;
-  intensity: string | null;
+  /** km/h for walking, running and cycling; steps per minute for stair climbing */
+  speed: number | null;
+  incline_pct: number | null;
+  resistance: number | null;
+  distance: number | null;
+  distance_unit: "km" | "m" | "floors" | null;
   notes: string | null;
   logged_at: string;
   log_date: string;

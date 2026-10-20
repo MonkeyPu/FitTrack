@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { buttonClass } from "@/components/ui/button";
 import { FoodsView } from "@/components/views/library-views";
 
-export const metadata = { title: "Saved foods" };
+export const metadata = { title: "My ingredients" };
 export default function Page() {
-  return (<><PageHeader title="Saved foods" back="/add" action={<Link href="/library/foods/new" aria-label="New food" className={buttonClass({ size: "icon" })}><Plus className="h-5 w-5" /></Link>} /><FoodsView /></>);
+  return (<><PageHeader title="My ingredients" back="/add" action={<Link href="/library/foods/new" aria-label="New ingredient" className={buttonClass({ size: "icon" })}><Plus className="h-5 w-5" /></Link>} /><FoodsView /></>);
 }

@@ -18,7 +18,7 @@ describe("nutrition helpers", () => {
     expect(readNutrients(row).carbs).toBe(12.5);
     expect(readNutrients(row).fat).toBe(0);
     expect(nutrientColumns(n({ fiber: 4 }), "_per_serving_snapshot").fiber_per_serving_snapshot).toBe(4);
-    expect(readTotals({ total_salt: "0.8" }).salt).toBe(0.8);
+    expect(readTotals({ total_added_sugar: "0.8" }).added_sugar).toBe(0.8);
     expect(totalColumns(n({ carbs: 10 }), 3).total_carbs).toBe(30);
   });
   it("adds nutrient sets", () => {

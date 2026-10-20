@@ -229,7 +229,8 @@ export function useDeleteEntry() {
 
 export type ActivityInput = {
   id?: string; oldDate?: string; date: string; loggedAt: string; name: string; type: string;
-  minutes: number; calories: number; source: string; intensity: string | null; notes: string | null;
+  minutes: number; calories: number; source: string; notes: string | null;
+  speed: number | null; incline: number | null; resistance: number | null; distance: number | null; distanceUnit: "km" | "m" | "floors" | null;
 };
 
 export function useSaveActivity() {
@@ -244,7 +245,8 @@ export function useSaveActivity() {
       assertOnline();
       const row = {
         activity_name: a.name, activity_type: a.type, duration_minutes: Math.round(a.minutes), calories_burned: a.calories,
-        calorie_source: a.source, intensity: a.intensity, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
+        calorie_source: a.source, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
+        speed: a.speed, incline_pct: a.incline, resistance: a.resistance, distance: a.distance, distance_unit: a.distanceUnit,
       };
       const { error } = a.id
         ? await sb.from("activity_logs").update(row).eq("id", a.id)
@@ -256,7 +258,8 @@ export function useSaveActivity() {
       if (a.id && a.oldDate) cache.patch(a.oldDate, (d) => ({ ...d, activities: d.activities.filter((x) => x.id !== a.id) }));
       const entry = {
         id: a.id ?? tmpId(), activity_name: a.name, activity_type: a.type, duration_minutes: Math.round(a.minutes),
-        calories_burned: a.calories, calorie_source: a.source, intensity: a.intensity, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
+        calories_burned: a.calories, calorie_source: a.source, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
+        speed: a.speed, incline_pct: a.incline, resistance: a.resistance, distance: a.distance, distance_unit: a.distanceUnit,
       } as ActivityLog;
       cache.patch(a.date, (d) => ({ ...d, activities: byTime([...d.activities.filter((x) => x.id !== entry.id), entry]) }));
       return { snap };
@@ -279,8 +282,14 @@ export function useSaveFood() {
     mutationFn: async (f: FoodInput) => {
       assertOnline();
       const row = { name: f.name, serving_description: f.serving, calories_per_serving: f.calories, protein_per_serving: f.protein, ...nutrientColumns(f.nutrients) };
-      const { error } = f.id ? await sb.from("foods").update(row).eq("id", f.id) : await sb.from("foods").insert({ ...row, user_id: userId });
-      if (error) throw error;
+      if (f.id) {
+        const { error } = await sb.from("foods").update(row).eq("id", f.id);
+        if (error) throw error;
+        return f.id;
+      }
+      const { data, error } = await sb.from("foods").insert({ ...row, user_id: userId }).select("id").single();
+      if (error || !data) throw error ?? new Error("insert failed");
+      return data.id as string;
     },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.foods }),
   });
@@ -307,71 +316,6 @@ export function useDeleteFood() {
     onError: (e, _v, ctx) => { qc.setQueryData(qk.foods, ctx?.prev); toast(messageOf(e)); },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.foods }),
   });
-}
-
-export type MealInput = { id?: string; name: string; items: ItemInput[] };
-
-export function useSaveMeal() {
-  const sb = useSupabase();
-  const qc = useQueryClient();
-  const { userId } = useApp();
-  return useMutation({
-    networkMode: "always",
-    mutationFn: async (m: MealInput) => {
-      assertOnline();
-      let mealId = m.id;
-      let oldIds: string[] = [];
-      if (mealId) {
-        const { data } = await sb.from("meal_items").select("id").eq("meal_id", mealId);
-        oldIds = (data ?? []).map((r) => r.id);
-        const { error } = await sb.from("meals").update({ name: m.name }).eq("id", mealId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await sb.from("meals").insert({ user_id: userId, name: m.name }).select("id").single();
-        if (error || !data) throw error ?? new Error("insert failed");
-        mealId = data.id;
-      }
-      const { error } = await sb.from("meal_items").insert(m.items.map((i) => ({
-        meal_id: mealId, user_id: userId, food_id: i.food_id, food_name_snapshot: i.name, serving_description_snapshot: i.serving_description,
-        calories_per_serving_snapshot: i.calories, protein_per_serving_snapshot: i.protein, serving_quantity: i.qty,
-        ...nutrientColumns(i.nutrients, "_per_serving_snapshot"),
-      })));
-      if (error) throw error;
-      if (oldIds.length) await sb.from("meal_items").delete().in("id", oldIds);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.meals }),
-  });
-}
-
-export function useDeleteMeal() {
-  const sb = useSupabase();
-  const qc = useQueryClient();
-  const toast = useToast();
-  return useMutation({
-    networkMode: "always",
-    mutationFn: async (id: string) => {
-      assertOnline();
-      const { error } = await sb.from("meals").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: qk.meals });
-      const prev = qc.getQueryData<Meal[]>(qk.meals);
-      qc.setQueryData<Meal[]>(qk.meals, (l) => l?.filter((m) => m.id !== id));
-      return { prev };
-    },
-    onError: (e, _v, ctx) => { qc.setQueryData(qk.meals, ctx?.prev); toast(messageOf(e)); },
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.meals }),
-  });
-}
-
-/** Logging a saved meal: the meal's values are copied into the diary entry. */
-export function mealToItems(meal: Meal): ItemInput[] {
-  return meal.meal_items.map((i) => ({
-    food_id: i.food_id, name: i.food_name_snapshot, serving_description: i.serving_description_snapshot,
-    calories: Number(i.calories_per_serving_snapshot), protein: Number(i.protein_per_serving_snapshot),
-    nutrients: readNutrients(i as unknown as Record<string, unknown>, "_per_serving_snapshot"), qty: Number(i.serving_quantity),
-  }));
 }
 
 /* ───────────── friends ───────────── */

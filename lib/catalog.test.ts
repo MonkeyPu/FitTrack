@@ -3,7 +3,7 @@ import { displayName, imageOf, matchesStore, matchesWords, parseOffProduct, plai
 
 const yoghurt = {
   code: "8480000123456", product_name: "Yogur natural", brands: "Hacendado,Mercadona", quantity: "4 x 125 g", serving_size: "125 g", serving_quantity: 125,
-  nutriments: { "energy-kcal_100g": 63, proteins_100g: 4.1, carbohydrates_100g: 5, sugars_100g: 5, fat_100g: 3, "saturated-fat_100g": 2, fiber_100g: 0, salt_100g: 0.12 },
+  nutriments: { "energy-kcal_100g": 63, proteins_100g: 4.1, carbohydrates_100g: 5, sugars_100g: 5, fat_100g: 3, "saturated-fat_100g": 2, fiber_100g: 0, "added-sugars_100g": 1.5 },
 };
 
 describe("parseOffProduct", () => {

@@ -19,7 +19,7 @@ function Thumb({ src, size = 48 }: { src: string | null; size?: number }) {
 }
 
 /** Type to see matching supermarket products (with photos) as a list; tap one to choose an amount. */
-export function CatalogPicker({ onPick, onClose, initialQuery = "" }: { onPick: (p: PickedFood) => void; onClose: () => void; initialQuery?: string }) {
+export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = false }: { onPick: (p: PickedFood) => void; onClose?: () => void; initialQuery?: string; inline?: boolean }) {
   const [store, setStore] = useState<string>("mercadona");
   const [only, setOnly] = useState(false);
   const [text, setText] = useState(initialQuery);
@@ -34,10 +34,11 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "" }: { onPick: 
   const instant = useRef(false);
 
   useEffect(() => {
+    if (inline || !onClose) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, inline]);
 
   // Search while typing, after a short pause so every keystroke doesn't hit the catalog.
   useEffect(() => {
@@ -92,16 +93,17 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "" }: { onPick: 
   const scaled = chosen ? scaleProduct(chosen, amt) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 md:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Supermarket catalog" onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88dvh] w-full max-w-md flex-col rounded-t-3xl border border-line bg-card md:rounded-3xl">
+    <div className={inline ? "" : "fixed inset-0 z-50 flex items-end justify-center bg-black/60 md:items-center"} onClick={inline ? undefined : onClose}>
+      <div role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : true} aria-label="Supermarket catalog" onClick={(e) => e.stopPropagation()}
+        className={inline ? "" : "flex max-h-[88dvh] w-full max-w-md flex-col rounded-t-3xl border border-line bg-card md:rounded-3xl"}>
+        {inline ? (chosen && <button type="button" onClick={() => setChosen(null)} className="mb-2 flex min-h-11 items-center gap-2 text-sm font-medium text-accent"><ArrowLeft className="h-4 w-4" />Back to results</button>) : (
         <div className="flex items-center gap-2 px-4 pb-2 pt-4">
           {chosen && <button type="button" aria-label="Back to results" onClick={() => setChosen(null)} className="-ml-2 flex h-11 w-11 items-center justify-center rounded-xl text-muted"><ArrowLeft className="h-5 w-5" /></button>}
           <h2 className="flex-1 text-lg font-semibold">{chosen ? "Choose an amount" : "Supermarket catalog"}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted"><X className="h-5 w-5" /></button>
-        </div>
+        </div>)}
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className={inline ? "space-y-3" : "flex-1 space-y-3 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"}>
           {!chosen && (<>
             <form onSubmit={(e) => { e.preventDefault(); instant.current = true; setNonce((n) => n + 1); }} className="relative">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />

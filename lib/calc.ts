@@ -57,7 +57,7 @@ export function statusOf(pct: number | null): Status {
 export type DaySummary = {
   foodCalories: number;
   protein: number;
-  /** carbs, sugar, fat, saturated fat, fiber, salt (grams) */
+  /** carbs, sugar, added sugar, fat, saturated fat, fiber (grams) */
   nutrients: Nutrients;
   exerciseCalories: number;
   /** food calories minus logged exercise calories */

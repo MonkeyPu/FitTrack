@@ -20,7 +20,7 @@ export async function signUp(_: State, fd: FormData): Promise<State> {
     options: { emailRedirectTo: `${await getSiteUrl()}/auth/callback?next=/onboarding` },
   });
   if (error) return { error: error.message };
-  if (data.session) redirect("/onboarding");
+  if (data.session) return { ok: true, redirectTo: "/onboarding" };
   return { ok: true, message: "Check your email to confirm your account, then log in." };
 }
 
@@ -33,7 +33,8 @@ export async function signIn(_: State, fd: FormData): Promise<State> {
   // Bring this device's theme and accent color in line with the saved ones.
   const { data: prof } = await supabase.from("profiles").select("preferences").maybeSingle();
   await setAppearanceCookies(prof?.preferences);
-  redirect("/");
+  // The page does a full load of "/" (see AuthForm), the same as pressing refresh.
+  return { ok: true, redirectTo: "/" };
 }
 
 export async function requestPasswordReset(_: State, fd: FormData): Promise<State> {

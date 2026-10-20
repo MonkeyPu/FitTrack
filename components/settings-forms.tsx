@@ -1,7 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
 import { changePassword } from "@/app/actions/auth";
-import { changeEmail, deleteAccount, updateAccount, updateBodyStats, updateGoal, updateNutrientGoals, updatePrivacy, updateTargets } from "@/app/actions/profile";
+import { changeEmail, deleteAccount, updateAccount, updateBodyStats, updateGoal, updatePrivacy, updateTargets } from "@/app/actions/profile";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
@@ -51,6 +51,7 @@ export function TargetsForm({ profile }: { profile: Profile }) {
   });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV((o) => ({ ...o, [k]: e.target.value }));
   const warnings = targetWarnings({ maintenance: Number(v.maintenance), maxFood: Number(v.maxFood), netTarget: Number(v.net) });
+  const goals = parseNutrientGoals(profile.nutrient_goals);
   return (
     <form action={action} className="space-y-4">
       <Field label="Maintenance calories" hint="About how many calories you use per day, including normal activity (kcal)"><Input name="maintenance_calories" type="number" inputMode="numeric" value={v.maintenance} onChange={set("maintenance")} required /></Field>
@@ -58,26 +59,24 @@ export function TargetsForm({ profile }: { profile: Profile }) {
       <Field label="Net calorie target" hint="Food calories minus logged exercise calories (kcal)"><Input name="net_calorie_target" type="number" inputMode="numeric" value={v.net} onChange={set("net")} required /></Field>
       <Field label="Daily protein goal" hint="Grams per day"><Input name="protein_goal" type="number" inputMode="numeric" value={v.protein} onChange={set("protein")} required /></Field>
       <Warnings items={warnings} />
-      <p className="text-sm text-muted">{ESTIMATE_NOTE} Changing targets doesn't change past entries.</p>
-      <FormMessage state={state} />
-      <SubmitButton className="w-full">Save targets</SubmitButton>
-    </form>
-  );
-}
 
-export function NutrientGoalsForm({ profile }: { profile: Profile }) {
-  const [state, action] = useActionState(updateNutrientGoals, {});
-  const goals = parseNutrientGoals(profile.nutrient_goals);
-  return (
-    <form action={action} className="space-y-4">
-      <p className="text-sm text-muted">Totally optional. Set a daily goal for any of these and it shows up on your home screen. Leave a box empty for no goal. Grams per day.</p>
-      {NUTRIENTS.map((n) => (
-        <Field key={n.key} label={n.label} hint={NUTRIENT_GOAL_KIND[n.key] === "max" ? "A limit to stay under" : "An amount to aim for"}>
-          <Input name={`goal_${n.key}`} type="number" inputMode="decimal" step="any" min="0" defaultValue={goals[n.key] ?? ""} placeholder="No goal" />
-        </Field>
-      ))}
+      <div className="space-y-3 border-t border-line pt-4">
+        <div>
+          <p className="font-semibold">Nutrient goals</p>
+          <p className="text-sm text-muted">Optional. Set a daily goal in grams for any of these and its ring on the home screen fills toward it. Leave a box empty for no goal.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {NUTRIENTS.map((n) => (
+            <Field key={n.key} label={n.label} hint={NUTRIENT_GOAL_KIND[n.key] === "max" ? "A limit to stay under" : "An amount to aim for"}>
+              <Input name={`goal_${n.key}`} type="number" inputMode="decimal" step="any" min="0" defaultValue={goals[n.key] ?? ""} placeholder="No goal" />
+            </Field>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-sm text-muted">{ESTIMATE_NOTE} Changing targets doesn&apos;t change past entries.</p>
       <FormMessage state={state} />
-      <SubmitButton className="w-full">Save nutrient goals</SubmitButton>
+      <SubmitButton className="w-full">Save targets and goals</SubmitButton>
     </form>
   );
 }
@@ -86,7 +85,7 @@ export function BodyStatsForm({ profile }: { profile: Profile }) {
   const [state, action] = useActionState(updateBodyStats, {});
   return (
     <form action={action} className="space-y-4">
-      <p className="text-sm text-muted">Used to estimate calories burned when you log cardio. These stay private, and you can still type your own number for any activity.</p>
+      <p className="text-sm text-muted">Your weight is used to work out calories burned for walking, running and cycling. These stay private, and you can still type your own number for any activity.</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Height" hint="cm"><Input name="height_cm" type="number" inputMode="decimal" step="any" defaultValue={profile.height_cm ?? ""} placeholder="e.g. 175" /></Field>
         <Field label="Weight" hint="kg"><Input name="weight_kg" type="number" inputMode="decimal" step="any" defaultValue={profile.weight_kg ?? ""} placeholder="e.g. 70" /></Field>
@@ -97,7 +96,7 @@ export function BodyStatsForm({ profile }: { profile: Profile }) {
           <Select name="sex" defaultValue={profile.sex ?? ""}><option value="">Prefer not to say</option><option value="male">Male</option><option value="female">Female</option></Select>
         </Field>
       </div>
-      <p className="text-sm text-muted">Age and sex make the estimate a little more accurate. Update your weight here as it changes. Past activities keep the calories they were saved with.</p>
+      <p className="text-sm text-muted">Height, age and sex are optional and not used for cardio. Update your weight here as it changes. Past activities keep the calories they were saved with.</p>
       <FormMessage state={state} />
       <SubmitButton className="w-full">Save body stats</SubmitButton>
     </form>

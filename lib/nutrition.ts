@@ -1,10 +1,10 @@
 export const NUTRIENTS = [
   { key: "carbs", label: "Carbs" },
   { key: "sugar", label: "Sugar" },
+  { key: "added_sugar", label: "Added sugar" },
   { key: "fat", label: "Fat" },
   { key: "sat_fat", label: "Saturated fat" },
   { key: "fiber", label: "Fiber" },
-  { key: "salt", label: "Salt" },
 ] as const;
 
 export type NutrientKey = (typeof NUTRIENTS)[number]["key"];
@@ -16,7 +16,7 @@ export type NutrientGoals = Partial<Record<NutrientKey, number>>;
 
 /** "max" goals are limits to stay under. "min" goals are amounts to reach. */
 export const NUTRIENT_GOAL_KIND: Record<NutrientKey, "max" | "min"> = {
-  carbs: "max", sugar: "max", fat: "max", sat_fat: "max", fiber: "min", salt: "max",
+  carbs: "max", sugar: "max", added_sugar: "max", fat: "max", sat_fat: "max", fiber: "min",
 };
 
 /** Cleans whatever is stored in profiles.nutrient_goals. Anything not a positive number is dropped. */
@@ -30,7 +30,7 @@ export function parseNutrientGoals(v: unknown): NutrientGoals {
   return out;
 }
 
-export const zeroNutrients = (): Nutrients => ({ carbs: 0, sugar: 0, fat: 0, sat_fat: 0, fiber: 0, salt: 0 });
+export const zeroNutrients = (): Nutrients => ({ carbs: 0, sugar: 0, added_sugar: 0, fat: 0, sat_fat: 0, fiber: 0 });
 
 type Row = Record<string, unknown>;
 const num = (v: unknown) => {
@@ -89,7 +89,7 @@ export function sumItems(items: Item[]): { calories: number; protein: number; nu
 
 /** Form helpers: nutrient inputs are strings while editing. Blank means 0. */
 export type NutrientStrings = Record<NutrientKey, string>;
-export const emptyNutrientStrings = (): NutrientStrings => ({ carbs: "", sugar: "", fat: "", sat_fat: "", fiber: "", salt: "" });
+export const emptyNutrientStrings = (): NutrientStrings => ({ carbs: "", sugar: "", added_sugar: "", fat: "", sat_fat: "", fiber: "" });
 export function toNutrientStrings(n: Nutrients): NutrientStrings {
   const out = emptyNutrientStrings();
   for (const k of NUTRIENT_KEYS) out[k] = n[k] ? String(n[k]) : "";

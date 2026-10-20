@@ -33,12 +33,6 @@ export async function fetchFoods(sb: SupabaseClient, userId: string): Promise<Fo
   return (data ?? []) as Food[];
 }
 
-export async function fetchMeals(sb: SupabaseClient, userId: string): Promise<Meal[]> {
-  const { data, error } = await sb.from("meals").select("id, name, meal_items(*)").eq("user_id", userId).order("name");
-  if (error) throw error;
-  return (data ?? []) as Meal[];
-}
-
 export async function fetchHistory(sb: SupabaseClient, userId: string, from: string, to: string): Promise<DayTotals[]> {
   const range = (t: "food_logs" | "meal_logs" | "activity_logs", cols: string) =>
     sb.from(t).select(cols).eq("user_id", userId).gte("log_date", from).lte("log_date", to);

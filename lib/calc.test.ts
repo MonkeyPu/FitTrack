@@ -82,7 +82,7 @@ describe("nutrient totals", () => {
     expect(s.nutrients.carbs).toBe(60);
     expect(s.nutrients.sugar).toBe(4);
     expect(s.nutrients.fat).toBe(12);
-    expect(s.nutrients.salt).toBe(0);
+    expect(s.nutrients.added_sugar).toBe(0);
   });
 });
 

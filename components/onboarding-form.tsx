@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { completeOnboarding } from "@/app/actions/profile";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { FormMessage, Warnings } from "@/components/form-message";
@@ -12,6 +12,7 @@ const STEPS = ["About you", "Maintenance", "Daily targets", "Your goal"];
 
 export function OnboardingForm({ userId }: { userId: string }) {
   const [state, action] = useActionState(completeOnboarding, {});
+  useEffect(() => { if (state.redirectTo) window.location.assign(state.redirectTo); }, [state.redirectTo]);
   const [step, setStep] = useState(0);
   const [err, setErr] = useState("");
   const [v, setV] = useState({

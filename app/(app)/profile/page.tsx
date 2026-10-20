@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Library, Users, type LucideIcon } from "lucide-react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
 import { Avatar } from "@/components/avatar";
 import { requireProfile } from "@/lib/data";
@@ -32,11 +32,6 @@ export default async function Page() {
       </Link>
 
       <Group>{SETTINGS_SECTIONS.map((s) => <Row key={s.slug} href={`/profile/${s.slug}`} icon={s.icon} title={s.title} sub={s.sub} />)}</Group>
-
-      <Group>
-        <Row href="/library/foods" icon={Library} title="Saved foods and meals" sub="Foods and meals you log often" />
-        <Row href="/friends" icon={Users} title="Friends" sub="Requests and your friends list" />
-      </Group>
 
       <LogoutButton />
     </>

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { ACTIVITY_PRESETS, CALORIE_SOURCES } from "@/lib/types";
-import { INTENSITIES } from "@/lib/cardio";
 import { NUTRIENT_KEYS, type NutrientKey } from "@/lib/nutrition";
 
 const emptyToUndef = (v: unknown) => (v === "" || v === null ? undefined : v);
@@ -123,7 +122,11 @@ export const activitySchema = z.object({
   duration_minutes: reqNum(1, 1440, "duration"),
   calories_burned: reqNum(0, 10000, "calories burned"),
   calorie_source: z.enum(CALORIE_SOURCES.map((s) => s.value) as [string, ...string[]]),
-  intensity: z.preprocess(emptyToUndef, z.enum(INTENSITIES.map((i) => i.value) as [string, ...string[]]).optional()),
+  speed: optNum(0, 300, "speed"),
+  incline_pct: optNum(0, 15, "incline"),
+  resistance: optNum(0, 100, "resistance"),
+  distance: optNum(0, 100000, "distance"),
+  distance_unit: z.preprocess(emptyToUndef, z.enum(["km", "m", "floors"]).optional()),
   notes: optText(500),
   log_date: dateStr,
   logged_at: z.string().datetime({ message: "Choose a valid time" }),

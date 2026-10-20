@@ -1,46 +1,69 @@
 import { describe, expect, it } from "vitest";
-import { estimateCardioCalories, hasBodyStats, restingKcalPerDay } from "./cardio";
+import { ACTIVITY_CONFIG, TREADMILL, cyclingKcal, cyclingMet, estimateCardio, gaitFor, settingsSummary, treadmillDistanceKm, treadmillKcal } from "./cardio";
 
-const man = { weightKg: 70, heightCm: 175, age: 30, sex: "male" as const };
-
-describe("restingKcalPerDay", () => {
-  it("matches Mifflin-St Jeor for a 70 kg, 175 cm, 30 year old man", () => {
-    expect(restingKcalPerDay(man)).toBeCloseTo(1648.75, 2);
-  });
-  it("needs height and weight", () => {
-    expect(restingKcalPerDay({ weightKg: 70 })).toBeNull();
-    expect(hasBodyStats({ heightCm: 175 })).toBe(false);
-    expect(hasBodyStats(man)).toBe(true);
-  });
-  it("uses a neutral constant when sex and age are missing", () => {
-    expect(restingKcalPerDay({ weightKg: 70, heightCm: 175 })).toBeCloseTo(700 + 1093.75 - 150 - 78, 2);
+describe("treadmill ranges (Precor TRM 833, P30 console)", () => {
+  it("matches the machine", () => {
+    expect(TREADMILL).toMatchObject({ speedMin: 0.5, speedMax: 25.5, inclineMin: 0, inclineMax: 15, inclineStep: 0.5 });
+    expect(ACTIVITY_CONFIG.walking.incline?.max).toBe(15);
+    expect(ACTIVITY_CONFIG.running.speed?.max).toBe(25.5);
   });
 });
 
-describe("estimateCardioCalories", () => {
-  it("30 minutes of steady running", () => {
-    // (9.8 - 1) x 1648.75 / 24 x 0.5
-    expect(estimateCardioCalories({ type: "running", intensity: "moderate", minutes: 30, body: man })).toBe(302);
+describe("treadmillKcal (ACSM, active calories above rest)", () => {
+  it("running 10 km/h flat for 30 min at 70 kg is about 1 kcal per kg per km", () => {
+    const kcal = treadmillKcal({ type: "running", speedKmh: 10, inclinePct: 0, minutes: 30, weightKg: 70 })!;
+    expect(kcal).toBe(350);
+    expect(kcal / (5 * 70)).toBeCloseTo(1, 1);
   });
-  it("scales with time and intensity", () => {
-    const a = estimateCardioCalories({ type: "cycling", intensity: "light", minutes: 30, body: man })!;
-    const b = estimateCardioCalories({ type: "cycling", intensity: "light", minutes: 60, body: man })!;
-    const c = estimateCardioCalories({ type: "cycling", intensity: "vigorous", minutes: 30, body: man })!;
-    expect(b).toBeCloseTo(a * 2, -1);
-    expect(c).toBeGreaterThan(a);
+  it("walking 5.5 km/h at 5% incline for 30 min at 70 kg", () => {
+    expect(treadmillKcal({ type: "walking", speedKmh: 5.5, inclinePct: 5, minutes: 30, weightKg: 70 })).toBe(183);
   });
-  it("heavier people burn more", () => {
-    const light = estimateCardioCalories({ type: "walking", intensity: "moderate", minutes: 45, body: { ...man, weightKg: 60 } })!;
-    const heavy = estimateCardioCalories({ type: "walking", intensity: "moderate", minutes: 45, body: { ...man, weightKg: 95 } })!;
-    expect(heavy).toBeGreaterThan(light);
+  it("incline raises the burn, and heavier people burn more", () => {
+    const base = { type: "walking", speedKmh: 5, minutes: 30, weightKg: 70 };
+    expect(treadmillKcal({ ...base, inclinePct: 10 })!).toBeGreaterThan(treadmillKcal({ ...base, inclinePct: 0 })!);
+    expect(treadmillKcal({ ...base, inclinePct: 0, weightKg: 90 })!).toBeGreaterThan(treadmillKcal({ ...base, inclinePct: 0 })!);
   });
-  it("returns null without body stats or time", () => {
-    expect(estimateCardioCalories({ type: "running", intensity: "moderate", minutes: 30, body: {} })).toBeNull();
-    expect(estimateCardioCalories({ type: "running", intensity: "moderate", minutes: 0, body: man })).toBeNull();
+  it("picks the equation by speed, and follows the activity in between", () => {
+    expect(gaitFor("walking", 9)).toBe("running");
+    expect(gaitFor("running", 4)).toBe("walking");
+    expect(gaitFor("running", 7)).toBe("running");
+    expect(gaitFor("walking", 7)).toBe("walking");
   });
-  it("falls back to general cardio for unknown types", () => {
-    expect(estimateCardioCalories({ type: "rowing", intensity: "moderate", minutes: 30, body: man })).toBe(
-      estimateCardioCalories({ type: "other_cardio", intensity: "moderate", minutes: 30, body: man }),
-    );
+  it("needs speed, time and weight, and clamps incline to the machine's range", () => {
+    expect(treadmillKcal({ type: "walking", speedKmh: 0, inclinePct: 0, minutes: 30, weightKg: 70 })).toBeNull();
+    expect(treadmillKcal({ type: "walking", speedKmh: 5, inclinePct: 0, minutes: 0, weightKg: 70 })).toBeNull();
+    expect(treadmillKcal({ type: "walking", speedKmh: 5, inclinePct: 0, minutes: 30, weightKg: 0 })).toBeNull();
+    const at15 = treadmillKcal({ type: "walking", speedKmh: 5, inclinePct: 15, minutes: 30, weightKg: 70 });
+    expect(treadmillKcal({ type: "walking", speedKmh: 5, inclinePct: 40, minutes: 30, weightKg: 70 })).toBe(at15);
+  });
+});
+
+describe("cycling", () => {
+  it("uses the MET for the average speed and ignores resistance", () => {
+    expect(cyclingMet(12)).toBe(4);
+    expect(cyclingMet(20)).toBe(8);
+    expect(cyclingKcal({ distanceKm: 10, minutes: 30, weightKg: 70 })).toBe(Math.round((8 - 1) * 70 * 0.5)); // 20 km/h
+  });
+});
+
+describe("estimateCardio", () => {
+  it("only estimates walking, running and cycling, and only with a weight", () => {
+    expect(estimateCardio({ type: "running", minutes: 30, weightKg: 70, speed: 10, incline: 0 })).toEqual({ kcal: 350, method: "treadmill" });
+    expect(estimateCardio({ type: "cycling", minutes: 30, weightKg: 70, distanceKm: 10 })?.method).toBe("cycling");
+    expect(estimateCardio({ type: "swimming", minutes: 30, weightKg: 70 })).toBeNull();
+    expect(estimateCardio({ type: "running", minutes: 30, weightKg: null, speed: 10 })).toBeNull();
+  });
+});
+
+describe("helpers", () => {
+  it("works out distance from speed and time", () => {
+    expect(treadmillDistanceKm(5.5, 30)).toBe(2.75);
+    expect(treadmillDistanceKm(0, 30)).toBe(0);
+  });
+  it("summarises the settings of a logged activity", () => {
+    expect(settingsSummary({ activity_type: "walking", speed: 5.5, incline_pct: 7.5, resistance: null, distance: 2.75, distance_unit: "km" })).toBe("5.5 km/h · 7.5% incline · 2.75 km");
+    expect(settingsSummary({ activity_type: "cycling", speed: null, incline_pct: null, resistance: 12, distance: 8, distance_unit: "km" })).toBe("resistance 12 · 8 km");
+    expect(settingsSummary({ activity_type: "stair_climbing", speed: 60, incline_pct: null, resistance: null, distance: 20, distance_unit: "floors" })).toBe("60 steps/min · 20 floors");
+    expect(settingsSummary({ activity_type: "swimming", speed: null, incline_pct: null, resistance: null, distance: null, distance_unit: null })).toBe("");
   });
 });

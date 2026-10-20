@@ -56,7 +56,7 @@ export async function completeOnboarding(_: State, fd: FormData): Promise<State>
   );
   if (error) return { error: error.code === "23505" ? USERNAME_TAKEN : SAVE_FAILED };
   revalidatePath("/", "layout");
-  redirect("/");
+  return { ok: true, redirectTo: "/" };
 }
 
 export async function updateAccount(_: State, fd: FormData): Promise<State> {
@@ -88,13 +88,22 @@ export async function changeEmail(_: State, fd: FormData): Promise<State> {
 
 export async function updateTargets(_: State, fd: FormData): Promise<State> {
   const { supabase, user } = await requireUser();
-  const p = targetsSchema.safeParse(Object.fromEntries(fd));
+  const input = Object.fromEntries(fd);
+  const p = targetsSchema.safeParse(input);
   if (!p.success) return { error: firstError(p.error) };
-  // Only the profile changes. Existing logs are never touched, and a trigger records the change.
-  const { error } = await supabase.from("profiles").update(p.data).eq("id", user.id);
+  const g = nutrientGoalsSchema.safeParse(input);
+  if (!g.success) return { error: firstError(g.error) };
+  // Blank or 0 means "no goal", so only real values are stored.
+  const goals: NutrientGoals = {};
+  for (const k of NUTRIENT_KEYS) {
+    const n = (g.data as Record<string, number | undefined>)[`goal_${k}`];
+    if (typeof n === "number" && n > 0) goals[k] = n;
+  }
+  // Only the profile changes. Existing logs are never touched, and a trigger records the target change.
+  const { error } = await supabase.from("profiles").update({ ...p.data, nutrient_goals: goals }).eq("id", user.id);
   if (error) return { error: SAVE_FAILED };
   revalidatePath("/", "layout");
-  return { ok: true, message: "Targets saved. Past entries are unchanged." };
+  return { ok: true, message: "Saved. Past entries are unchanged." };
 }
 
 export async function updateBodyStats(_: State, fd: FormData): Promise<State> {
@@ -108,7 +117,7 @@ export async function updateBodyStats(_: State, fd: FormData): Promise<State> {
     .eq("id", user.id);
   if (error) return { error: SAVE_FAILED };
   revalidatePath("/", "layout");
-  return { ok: true, message: v.height_cm && v.weight_kg ? "Saved. Cardio calories will be calculated for you." : "Saved. Add height and weight to calculate cardio calories." };
+  return { ok: true, message: v.weight_kg ? "Saved. Cardio calories will be calculated for you." : "Saved. Add your weight to calculate cardio calories." };
 }
 
 export async function updateNutrientGoals(_: State, fd: FormData): Promise<State> {

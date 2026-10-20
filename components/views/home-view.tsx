@@ -30,11 +30,6 @@ export function HomeView() {
   const deficitStatus = statusOf(s.netPct);
   const empty = day.data.foods.length + day.data.meals.length + day.data.activities.length === 0;
   const goals = parseNutrientGoals(profile.nutrient_goals);
-  // Nutrients with a goal get their own progress card, so the quick totals only list the rest.
-  const macros = ([["Carbs", "carbs"], ["Sugar", "sugar"], ["Fat", "fat"], ["Fiber", "fiber"]] as const)
-    .filter(([, k]) => !goals[k])
-    .map(([label, k]) => [label, s.nutrients[k]] as const);
-
   const goalDays = profile.goal_target_date ? daysBetween(today, profile.goal_target_date) : null;
   const goalTotal = profile.goal_start_date && profile.goal_target_date ? daysBetween(profile.goal_start_date, profile.goal_target_date) : null;
   const goalElapsed = goalTotal && profile.goal_start_date ? Math.min(100, Math.max(0, (daysBetween(profile.goal_start_date, today) / goalTotal) * 100)) : null;
@@ -49,7 +44,7 @@ export function HomeView() {
           goalDate: profile.goal_target_date, goalText: profile.goal_description,
         }}
       />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         <Card className="flex flex-col items-center gap-3 px-2 py-5">
           <ProgressRing pct={s.foodPct} status={foodStatus} size={132}>
             <span className={cn("num text-3xl font-bold", statusText[foodStatus])}>{s.foodRemaining === null ? fmt(s.foodCalories) : fmt(Math.abs(s.foodRemaining))}</span>
@@ -79,12 +74,6 @@ export function HomeView() {
       </Card>
 
       <NutrientGoalsCard nutrients={s.nutrients} goals={goals} />
-
-      {macros.some(([, v]) => v > 0) && (
-        <Card className="flex justify-around gap-2 px-3">
-          {macros.map(([k, v]) => (<div key={k} className="text-center"><p className="num text-lg font-bold">{fmt(v, 1)}<span className="text-xs font-normal text-muted"> g</span></p><p className="text-xs text-muted">{k}</p></div>))}
-        </Card>
-      )}
 
       {empty && <p className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">Nothing logged {date === today ? "yet today" : "on this day"}. Tap + to add your first entry.</p>}
 

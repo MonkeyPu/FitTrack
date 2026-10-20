@@ -1,19 +1,17 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Store, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useApp } from "@/components/app-context";
-import { CatalogPicker } from "@/components/catalog-picker";
 import { DateTimeFields } from "@/components/datetime-fields";
+import { IngredientSheet } from "@/components/ingredient-sheet";
 import { NutrientFields } from "@/components/nutrient-fields";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { useFoods } from "@/lib/client/hooks";
+import { Field, Input, Textarea } from "@/components/ui/field";
 import { useSaveEntry, type ItemInput } from "@/lib/client/mutations";
 import { FormError, parseNum, parseText } from "@/lib/client/validate";
 import { emptyNutrientStrings, NUTRIENT_KEYS, NUTRIENTS, readNutrients, sumItems, toNutrientStrings, type NutrientKey, type NutrientStrings } from "@/lib/nutrition";
 import { fmt } from "@/lib/utils";
-import type { PickedFood } from "@/lib/catalog";
 import type { Food } from "@/lib/types";
 
 export type FormRow = { key: string; food_id: string | null; name: string; serving: string; cal: string; protein: string; qty: string; nutrients: NutrientStrings };
@@ -22,13 +20,13 @@ export type EntryInitial = {
   kind: "food" | "meal"; id: string; date: string; time: string; notes: string; comboName: string; rows: FormRow[];
 };
 
+/** Where the supermarket catalog page leaves a chosen product for this form to pick up. */
+export const PREFILL_KEY = "fx-prefill";
+
 const labels = Object.fromEntries(NUTRIENTS.map((n) => [n.key, n.label]));
 const rowFromFood = (f: Food): FormRow => ({
   key: crypto.randomUUID(), food_id: f.id, name: f.name, serving: f.serving_description ?? "", cal: String(f.calories_per_serving),
   protein: String(f.protein_per_serving), qty: "1", nutrients: toNutrientStrings(readNutrients(f as unknown as Record<string, unknown>)),
-});
-const rowFromPicked = (p: PickedFood): FormRow => ({
-  key: crypto.randomUUID(), food_id: null, name: p.name, serving: p.serving, cal: String(p.calories), protein: String(p.protein), qty: "1", nutrients: toNutrientStrings(p.nutrients),
 });
 const blankRow = (): FormRow => ({ key: crypto.randomUUID(), food_id: null, name: "", serving: "", cal: "", protein: "", qty: "1", nutrients: emptyNutrientStrings() });
 
@@ -40,14 +38,13 @@ function toItem(r: FormRow, label: string): ItemInput {
     calories: parseNum(r.cal, `${label} calories`, { max: 10000, required: true }),
     protein: parseNum(r.protein, `${label} protein`, { max: 1000 }),
     nutrients: Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, parseNum(r.nutrients[k], labels[k], { max: 1000 })])) as ItemInput["nutrients"],
-    qty: parseNum(r.qty, `${label} servings`, { min: 0.01, max: 100, required: true }),
+    qty: parseNum(r.qty, `${label} amount`, { min: 0.01, max: 100, required: true }),
   };
 }
 
 export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryInitial }) {
   const router = useRouter();
   const { date: selected, today, setDate } = useApp();
-  const foods = useFoods().data ?? [];
   const save = useSaveEntry();
   const editing = Boolean(initial);
 
@@ -56,20 +53,21 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [comboName, setComboName] = useState(initial?.comboName ?? "");
   const [comboTouched, setComboTouched] = useState(Boolean(initial?.comboName));
-  const [saveToLibrary, setSaveToLibrary] = useState(false);
-  const [query, setQuery] = useState("");
-  const [catalogFor, setCatalogFor] = useState<"main" | "extra" | null>(null);
-  const [catalogQuery, setCatalogQuery] = useState("");
+  const [pickingIngredient, setPickingIngredient] = useState(false);
   const [error, setError] = useState("");
   const sent = useRef(false);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return foods.filter((f) => !q || f.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [query, foods]);
-
-  const setM = (patch: Partial<FormRow>) => setMain((m) => ({ ...m, ...patch, ...(editing ? {} : "name" in patch || "cal" in patch || "protein" in patch || "serving" in patch ? { food_id: null } : {}) }));
-  const patchExtra = (key: string, patch: Partial<FormRow>) => setExtras((l) => l.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  // A product chosen on the supermarket catalog page arrives here ready to log.
+  useEffect(() => {
+    if (initial || quick) return;
+    try {
+      const raw = sessionStorage.getItem(PREFILL_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(PREFILL_KEY);
+      const p = JSON.parse(raw) as { name: string; serving: string; calories: number; protein: number; nutrients: Record<NutrientKey, number> };
+      setMain({ ...blankRow(), name: p.name, serving: p.serving, cal: String(p.calories), protein: String(p.protein), nutrients: toNutrientStrings(p.nutrients) });
+    } catch { /* ignore a bad or missing value */ }
+  }, [initial, quick]);
 
   const n = (s: string) => (Number.isFinite(Number(s)) && s !== "" ? Number(s) : 0);
   const preview = sumItems([main, ...extras].map((r) => ({ qty: n(r.qty), calories: n(r.cal), protein: n(r.protein), nutrients: Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, n(r.nutrients[k])])) as never })));
@@ -91,8 +89,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
       sent.current = true;
       save.mutate({
         existing: initial ? { kind: initial.kind, id: initial.id, date: initial.date } : undefined,
-        date, loggedAt, notes: parseText(notes, "notes", 500) || null, items, comboName: name,
-        saveToLibrary: saveToLibrary && !editing && !main.food_id,
+        date, loggedAt, notes: parseText(notes, "notes", 500) || null, items, comboName: name, saveToLibrary: false,
       });
       setDate(date);
       if (editing) (window.history.length > 1 ? router.back() : router.push("/diary"));
@@ -104,75 +101,30 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4" noValidate>
-      {!editing && !quick && foods.length > 0 && (
-        <div className="space-y-2">
-          <Field label="Search your saved foods">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. yoghurt" className="pl-10" />
-            </div>
-          </Field>
-          {query.trim().length >= 3 && (
-            <button type="button" onClick={() => { setCatalogQuery(query.trim()); setCatalogFor("main"); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-line bg-card px-4 text-left text-sm text-accent">
-              <Store className="h-4 w-4 shrink-0" /><span className="truncate">Find &ldquo;{query.trim()}&rdquo; in the supermarket catalog</span>
-            </button>
-          )}
-          {query.trim() !== "" && (
-            <ul className="overflow-hidden rounded-xl border border-line">
-              {matches.length === 0 && <li className="px-4 py-3 text-sm text-muted">No saved food matches. Fill in the details below.</li>}
-              {matches.map((f) => (
-                <li key={f.id} className="border-b border-line last:border-0">
-                  <button type="button" onClick={() => { setMain(rowFromFood(f)); setQuery(""); }} className="flex min-h-12 w-full items-center justify-between gap-3 bg-card px-4 py-2 text-left">
-                    <span className="min-w-0"><span className="block truncate">{f.name}</span>{f.serving_description && <span className="block truncate text-xs text-muted">{f.serving_description}</span>}</span>
-                    <span className="num shrink-0 text-sm text-muted">{fmt(f.calories_per_serving)} kcal · {fmt(f.protein_per_serving, 1)} g</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {!quick && (
-        <Button type="button" variant="secondary" className="w-full" onClick={() => { setCatalogQuery(""); setCatalogFor("main"); }}><Store className="h-4 w-4" />Search supermarket catalog</Button>
-      )}
-
-      <Field label="Food name"><Input value={main.name} onChange={(e) => setM({ name: e.target.value })} maxLength={100} /></Field>
-      {!quick && <Field label="Serving size" hint="Optional, e.g. 1 pot (125 g)"><Input value={main.serving} onChange={(e) => setM({ serving: e.target.value })} maxLength={100} /></Field>}
+    <form onSubmit={submit} className="space-y-5" noValidate>
+      <Field label="Food name"><Input value={main.name} onChange={(e) => setMain((m) => ({ ...m, name: e.target.value, food_id: null }))} maxLength={100} placeholder="e.g. Greek yoghurt" /></Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Calories per serving"><Input type="number" inputMode="decimal" step="any" min="0" value={main.cal} onChange={(e) => setM({ cal: e.target.value })} placeholder="kcal" /></Field>
-        <Field label="Protein per serving"><Input type="number" inputMode="decimal" step="any" min="0" value={main.protein} onChange={(e) => setM({ protein: e.target.value })} placeholder="g" /></Field>
+        <Field label="Calories"><Input type="number" inputMode="decimal" step="any" min="0" value={main.cal} onChange={(e) => setMain((m) => ({ ...m, cal: e.target.value, food_id: null }))} placeholder="kcal" /></Field>
+        <Field label="Protein"><Input type="number" inputMode="decimal" step="any" min="0" value={main.protein} onChange={(e) => setMain((m) => ({ ...m, protein: e.target.value, food_id: null }))} placeholder="g" /></Field>
       </div>
       {!quick && <NutrientFields values={main.nutrients} onChange={(k: NutrientKey, v) => setMain((m) => ({ ...m, nutrients: { ...m.nutrients, [k]: v } }))} />}
-      {!quick && <Field label="Number of servings"><Input type="number" inputMode="decimal" step="any" min="0.01" value={main.qty} onChange={(e) => setMain((m) => ({ ...m, qty: e.target.value }))} /></Field>}
 
       {!quick && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-muted">Ingredients <span className="font-normal">(add protein powder to yoghurt, for example)</span></p>
+          {extras.length > 0 && <p className="text-sm font-medium text-muted">Ingredients</p>}
           {extras.map((r) => (
-            <div key={r.key} className="space-y-3 rounded-xl border border-line bg-card p-3">
-              <div className="flex items-center gap-2">
-                <Input aria-label="Ingredient name" value={r.name} onChange={(e) => patchExtra(r.key, { name: e.target.value, food_id: null })} placeholder="Ingredient name" maxLength={100} />
-                <button type="button" aria-label="Remove ingredient" onClick={() => setExtras((l) => l.filter((x) => x.key !== r.key))} className="flex h-11 w-11 shrink-0 items-center justify-center text-muted hover:text-danger"><X className="h-5 w-5" /></button>
+            <div key={r.key} className="flex items-center gap-2 rounded-xl border border-line bg-card p-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{r.name}</p>
+                <p className="num truncate text-xs text-muted">{fmt(n(r.cal) * n(r.qty))} kcal · {fmt(n(r.protein) * n(r.qty), 1)} g protein</p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="kcal"><Input aria-label="Ingredient calories" type="number" inputMode="decimal" step="any" min="0" value={r.cal} onChange={(e) => patchExtra(r.key, { cal: e.target.value, food_id: null })} /></Field>
-                <Field label="Protein g"><Input aria-label="Ingredient protein" type="number" inputMode="decimal" step="any" min="0" value={r.protein} onChange={(e) => patchExtra(r.key, { protein: e.target.value, food_id: null })} /></Field>
-                <Field label="Servings"><Input aria-label="Ingredient servings" type="number" inputMode="decimal" step="any" min="0.01" value={r.qty} onChange={(e) => patchExtra(r.key, { qty: e.target.value })} /></Field>
-              </div>
+              <span className="shrink-0 text-sm text-muted">×</span>
+              <Input aria-label={`Amount of ${r.name}`} type="number" inputMode="decimal" step="any" min="0.01" value={r.qty} onChange={(e) => setExtras((l) => l.map((x) => (x.key === r.key ? { ...x, qty: e.target.value } : x)))} className="h-11 w-16 px-2 text-center" />
+              <span className="w-16 shrink-0 truncate text-xs text-muted">{r.serving.replace(/^1\s+/, "") || "unit"}</span>
+              <button type="button" aria-label={`Remove ${r.name}`} onClick={() => setExtras((l) => l.filter((x) => x.key !== r.key))} className="flex h-11 w-11 shrink-0 items-center justify-center text-muted hover:text-danger"><X className="h-5 w-5" /></button>
             </div>
           ))}
-          <div className="grid grid-cols-2 gap-2">
-            {foods.length > 0 && (
-              <Select aria-label="Add a saved food as an ingredient" value="" onChange={(e) => { const f = foods.find((x) => x.id === e.target.value); if (f) setExtras((l) => [...l, rowFromFood(f)]); }}>
-                <option value="">Add saved food…</option>
-                {foods.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
-            <Button type="button" variant="secondary" className={foods.length === 0 ? "col-span-2" : ""} onClick={() => setExtras((l) => [...l, blankRow()])}><Plus className="h-4 w-4" />Custom ingredient</Button>
-          </div>
-          <Button type="button" variant="secondary" className="w-full" onClick={() => { setCatalogQuery(""); setCatalogFor("extra"); }}><Store className="h-4 w-4" />Ingredient from supermarket catalog</Button>
+          <Button type="button" variant="secondary" className="w-full" onClick={() => setPickingIngredient(true)}><Plus className="h-4 w-4" />Add ingredient</Button>
         </div>
       )}
 
@@ -185,29 +137,22 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
       </div>
 
       <DateTimeFields date={initial?.date ?? selected} today={today} initialTime={initial?.time} />
-      {!quick && <Field label="Notes"><Textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></Field>}
 
-      {!editing && !quick && !main.food_id && extras.length === 0 && (
-        <label className="flex min-h-11 items-center gap-3">
-          <input type="checkbox" checked={saveToLibrary} onChange={(e) => setSaveToLibrary(e.target.checked)} className="h-5 w-5 accent-[rgb(var(--accent))]" />
-          <span>Save to my foods for next time</span>
-        </label>
+      {!quick && (
+        <details open={Boolean(initial && (main.qty !== "1" || main.serving || notes))} className="rounded-xl border border-line bg-card">
+          <summary className="flex min-h-12 cursor-pointer items-center px-4 text-sm font-medium">More details <span className="ml-2 font-normal text-muted">size, servings, notes</span></summary>
+          <div className="space-y-3 px-4 pb-4">
+            <Field label="Serving size" hint="Optional, e.g. 200 g"><Input value={main.serving} onChange={(e) => setMain((m) => ({ ...m, serving: e.target.value }))} maxLength={100} /></Field>
+            <Field label="Number of servings" hint="The calories and protein above are for one serving"><Input type="number" inputMode="decimal" step="any" min="0.01" value={main.qty} onChange={(e) => setMain((m) => ({ ...m, qty: e.target.value }))} /></Field>
+            <Field label="Notes"><Textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></Field>
+          </div>
+        </details>
       )}
 
       {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <Button type="submit" className="w-full">{editing ? "Save changes" : "Add to diary"}</Button>
 
-      {catalogFor && (
-        <CatalogPicker
-          initialQuery={catalogQuery}
-          onClose={() => setCatalogFor(null)}
-          onPick={(p) => {
-            if (catalogFor === "main") setMain((m) => ({ ...rowFromPicked(p), key: m.key, qty: m.qty }));
-            else setExtras((l) => [...l, rowFromPicked(p)]);
-            setCatalogFor(null);
-          }}
-        />
-      )}
+      {pickingIngredient && <IngredientSheet onClose={() => setPickingIngredient(false)} onPick={(f) => { setExtras((l) => [...l, rowFromFood(f)]); setPickingIngredient(false); }} />}
     </form>
   );
 }

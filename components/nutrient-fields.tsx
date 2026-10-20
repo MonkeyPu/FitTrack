@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { Field, Input } from "@/components/ui/field";
 import { NUTRIENT_KEYS, NUTRIENTS, type NutrientKey, type NutrientStrings } from "@/lib/nutrition";
 
-/** Optional extras per serving: carbs, sugar, fat, saturated fat, fiber, salt (grams). */
+/** Optional extras per serving: carbs, sugar, added sugar, fat, saturated fat, fiber (grams). */
 export function NutrientFields({ values, onChange }: { values: NutrientStrings; onChange: (k: NutrientKey, v: string) => void }) {
   const startOpen = useRef(NUTRIENT_KEYS.some((k) => values[k] !== ""));
   return (

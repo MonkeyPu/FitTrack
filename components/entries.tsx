@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { isTmp, useDeleteEntry, type DeleteInput } from "@/lib/client/mutations";
 import { fmt } from "@/lib/utils";
 import { timeInTz } from "@/lib/dates";
+import { settingsSummary } from "@/lib/cardio";
 import type { ActivityLog, FoodLog, MealLog } from "@/lib/types";
 
 const Row = ({ children }: { children: React.ReactNode }) => (
@@ -79,6 +80,7 @@ export function ActivityEntry({ log, tz }: { log: ActivityLog; tz: string }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{log.activity_name}</p>
         <p className="truncate text-sm text-muted">{timeInTz(log.logged_at, tz)} · {log.duration_minutes} min</p>
+        {settingsSummary(log) && <p className="truncate text-xs text-muted">{settingsSummary(log)}</p>}
       </div>
       <div className="num shrink-0 pr-1 text-right"><p className="font-semibold">{fmt(Number(log.calories_burned))} <span className="text-xs font-normal text-muted">kcal est.</span></p></div>
       <Actions pendingSync={isTmp(log.id)} editHref={`/edit/activity/${log.id}`} del={{ kind: "activity", id: log.id, date: log.log_date }} />

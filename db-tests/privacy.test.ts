@@ -38,7 +38,7 @@ beforeAll(async () => {
     alter default privileges in schema public grant all on tables to anon, authenticated;
     alter default privileges in schema public grant all on functions to anon, authenticated;
   `);
-  for (const f of ["0001_schema.sql", "0002_rls.sql", "0003_friends.sql", "0004_nutrients_and_friend_permissions.sql"]) await db.exec(sql(f));
+  for (const f of ["0001_schema.sql", "0002_rls.sql", "0003_friends.sql", "0004_nutrients_and_friend_permissions.sql", "0005_body_stats_nutrient_goals.sql", "0006_added_sugar_and_cardio_settings.sql"]) await db.exec(sql(f));
 
   // Fixtures (inserted as superuser). Users A, B, C plus 20 extras for rate limiting.
   for (let i = 1; i <= 30; i++) {
@@ -283,5 +283,30 @@ describe("per-friend sharing", () => {
     await db.exec("reset role;");
     expect(await q(`select * from public.friend_permissions where owner_id = '${OWNER}' and friend_id = '${F3}'`)).toHaveLength(0);
     expect(await q(`select * from public.friend_permissions where owner_id = '${OWNER}' and friend_id = '${F2}'`)).toHaveLength(1);
+  });
+});
+
+describe("added sugar and cardio settings", () => {
+  const user = U(30);
+  it("replaces salt with added sugar and keeps generated totals", async () => {
+    const cols = (await q(`select column_name from information_schema.columns where table_schema = 'public' and table_name in ('foods','food_logs','meal_logs','meal_items','meal_log_items') and column_name like '%salt%'`));
+    expect(cols).toHaveLength(0);
+    await db.exec(`insert into public.food_logs (user_id, food_name_snapshot, servings, calories_per_serving, added_sugar_per_serving, log_date)
+      values ('${user}', 'Cereal', 2, 120, 6.5, '${DAY}');`);
+    const f = (await q(`select total_added_sugar from public.food_logs where user_id = '${user}' and food_name_snapshot = 'Cereal'`))[0];
+    expect(Number(f.total_added_sugar)).toBe(13);
+  });
+  it("stores treadmill settings and rejects values outside the machine's range", async () => {
+    await asUser(user, async () => {
+      await q(`insert into public.activity_logs (user_id, activity_name, activity_type, duration_minutes, calories_burned, speed, incline_pct, distance, distance_unit, log_date)
+        values ('${user}', 'Walk', 'walking', 30, 150, 5.5, 7.5, 2.75, 'km', '${DAY}')`);
+      const a = (await q(`select speed, incline_pct, distance, distance_unit from public.activity_logs where user_id = '${user}'`))[0];
+      expect([Number(a.speed), Number(a.incline_pct), Number(a.distance), a.distance_unit]).toEqual([5.5, 7.5, 2.75, "km"]);
+      await expect(q(`insert into public.activity_logs (user_id, activity_name, duration_minutes, calories_burned, incline_pct, log_date) values ('${user}', 'x', 10, 10, 20, '${DAY}')`)).rejects.toThrow();
+      await expect(q(`insert into public.activity_logs (user_id, activity_name, duration_minutes, calories_burned, distance_unit, log_date) values ('${user}', 'x', 10, 10, 'miles', '${DAY}')`)).rejects.toThrow();
+    });
+  });
+  it("no longer has the intensity column", async () => {
+    expect(await q(`select 1 from information_schema.columns where table_name = 'activity_logs' and column_name = 'intensity'`)).toHaveLength(0);
   });
 });

@@ -8,7 +8,6 @@ Mobile-first calorie, protein and cardio tracker for friends. Next.js (App Route
 - 4-step onboarding: profile (name, unique username, optional picture, age), maintenance calories, daily targets, goal and target date
 - Home dashboard: separate Food and Net rings, protein bar, full calorie breakdown, quick actions, date navigation, goal countdown
 - Food logging with saved-food search, servings and live totals; saved foods (create, edit, delete)
-- Saved meals built from saved foods; logging a meal stores a snapshot of every ingredient
 - Cardio logging with presets, manual calories and the source of the estimate
 - Diary by date with edit and delete; totals recalculate from the database
 - Settings: targets, goal, account, email, password, privacy toggles, theme, data export, account deletion
@@ -17,13 +16,13 @@ Mobile-first calorie, protein and cardio tracker for friends. Next.js (App Route
 - Privacy toggles (daily summary, exercise, history, goal) that are enforced in the database, not the UI
 - Calendar: tap the date at the top of Home or Diary to open a month calendar (month and year arrows, jump to Today)
 - Game-style moments: a full-screen "chud" game-over screen when you pass your food limit, and confetti when you hit your protein goal, stay within your limit for the day (checked from 9pm and again the next morning) or reach your goal date. Each shows once per day per device, and can be turned off in Profile → Preferences
-- More nutrients: carbs, sugar, fat, saturated fat, fiber and salt on foods, meals and entries, with daily totals
-- Ingredients: add ingredients to any food while logging (protein powder in yoghurt). It is stored as a combined entry that can be expanded and edited
+- More nutrients: carbs, sugar, added sugar, fat, saturated fat and fiber on foods, meals and entries, with daily totals
+- Ingredients: save things you measure the same way every time (1 scoop of protein powder, 1 big spoon of yoghurt). While logging a food, tap Add ingredient to pick one or create a new one. The food and its ingredients are stored as one entry that can be expanded and edited
 - Manage friends: remove friends and choose, per friend, what they can see (daily nutrition, exercise, history, goal). Your Privacy settings are the default for everyone else
 - One date bar on Home, Diary, Add and Friends. The date you pick stays when you switch tabs, and Friends shows that date too
 - Fast, app-like feel: your data is loaded onto the phone, tabs switch without waiting, and saves show up instantly (and roll back with a message if they fail). Saving is refused while offline so nothing is silently lost
 - iPhone launch screen, shown instantly when opened from the Home Screen
-- Supermarket catalog: search Mercadona (and Carrefour, Dia, Lidl, Alcampo, Eroski, Aldi, Consum, or all of Spain) by name or barcode, pick an amount in g or ml, and fill a food or an ingredient. Data comes from Open Food Facts (ODbL), searched through the app's server with caching
+- Supermarket catalog: search Mercadona (and Carrefour, Dia, Lidl, Alcampo, Eroski, Aldi, Consum, or all of Spain) by name or barcode, pick an amount in g or ml, and continue to Log food with the values filled in. The catalog has its own button on the Add tab. Data comes from Open Food Facts (ODbL), searched through the app's server with caching
 - Database schema, indexes and RLS policies for every table
 - All calculations live in `lib/calc.ts` with unit tests (`npm test`)
 
@@ -33,7 +32,7 @@ Not yet built: your own history charts and statistics, offline/service worker, p
 
 ### 1. Supabase
 1. Create a project at supabase.com.
-2. SQL editor: open each file, copy its contents, paste and run, in order: `0001_schema.sql`, `0002_rls.sql`, `0003_friends.sql`, `0004_nutrients_and_friend_permissions.sql`. (Or use the Supabase CLI: `supabase link` then `supabase db push`.)
+2. SQL editor: open each file, copy its contents, paste and run, in order: `0001_schema.sql`, `0002_rls.sql`, `0003_friends.sql`, `0004_nutrients_and_friend_permissions.sql`, `0005_body_stats_nutrient_goals.sql`, `0006_added_sugar_and_cardio_settings.sql`. (Or use the Supabase CLI: `supabase link` then `supabase db push`.)
 3. Authentication → URL Configuration: set **Site URL** to your production URL and add these **Redirect URLs**:
    - `http://localhost:3000/auth/callback`
    - `https://YOUR-APP.vercel.app/auth/callback`
@@ -114,3 +113,11 @@ Calorie targets and maintenance numbers are estimates. The app warns on very low
 - Units are fixed to kcal and grams; the default diary date is always today.
 - Friend comparisons use your viewing date for "today", so a friend in a very different timezone may show a slightly different "today".
 - This code was type-checked, unit-tested and production-built, but the database logic is tested in an in-memory Postgres but it has not been run against a live Supabase project or tested on a physical iPhone. Do a first pass through sign-up → onboarding → log food/meal/cardio → edit/delete before sharing it.
+
+## Cardio
+- Walking and running take speed and incline like the gym treadmill (Precor TRM 833 with the P30 console: 0.5-25.5 km/h in 0.1 steps, incline 0-15% in 0.5% steps). Calories are worked out with the ACSM walking and running equations from speed, incline, time and your weight, counting only the calories above what you would burn resting.
+- Cycling records the resistance level and distance; its calories are a rough estimate from average speed (the resistance level is not used). Stair climbing records speed (steps per minute) and floors. Swimming and other cardio record distance. Calories for these are entered by hand.
+- Add your weight in Profile > Body stats to get calculated calories. You can always type your own number.
+
+## App icon
+- An installed Home Screen icon can't change on iPhone. The tab icon and the launch screen ring do follow today's food progress.

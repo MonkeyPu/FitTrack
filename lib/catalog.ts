@@ -103,7 +103,7 @@ export function parseOffProduct(p: Raw): CatalogProduct | null {
     fat: val("fat_100g") ?? 0,
     sat_fat: val("saturated-fat_100g") ?? 0,
     fiber: val("fiber_100g") ?? 0,
-    salt: val("salt_100g") ?? 0,
+    added_sugar: val("added-sugars_100g") ?? 0,
   };
 
   const sizeText = `${text(p.quantity)} ${text(p.serving_size)}`;
