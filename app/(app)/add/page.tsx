@@ -6,7 +6,7 @@ export const metadata = { title: "Add" };
 const items = [
   { href: "/add/food", icon: Utensils, title: "Log food", sub: "Enter a food and add your saved ingredients" },
   { href: "/add/cardio", icon: Dumbbell, title: "Log cardio", sub: "Walking, running, cycling and more" },
-  { href: "/add/catalog", icon: Store, title: "Supermarket catalog", sub: "Find Mercadona and other products" },
+  { href: "/add/catalog", icon: Store, title: "Supermarket catalog", sub: "Find Mercadona products" },
   { href: "/add/food?quick=1", icon: PenLine, title: "Add calories", sub: "Quickly add a number without naming a food" },
 ];
 

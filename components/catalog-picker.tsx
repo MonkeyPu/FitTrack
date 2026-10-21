@@ -3,30 +3,32 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Package, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { STORES, displayName, matchesStore, matchesWords, plainWords, scaleProduct, type CatalogProduct, type PickedFood } from "@/lib/catalog";
+import { STORES, displayName, imageAt, plainWords, priceText, rankProducts, scaleProduct, type CatalogProduct, type PickedFood } from "@/lib/catalog";
+import { searchCatalog } from "@/lib/client/api";
+import { useSupabase } from "@/lib/client/hooks";
 import { cn, fmt } from "@/lib/utils";
 
 type Status = "idle" | "loading" | "done" | "error";
 
 function Thumb({ src, size = 48 }: { src: string | null; size?: number }) {
   const [bad, setBad] = useState(false);
+  const url = imageAt(src, size * 2);
   return (
     <span className="flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-card2 text-muted" style={{ width: size, height: size }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {src && !bad ? <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBad(true)} className="h-full w-full object-contain" /> : <Package className="h-5 w-5" />}
+      {url && !bad ? <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBad(true)} className="h-full w-full object-contain" /> : <Package className="h-5 w-5" />}
     </span>
   );
 }
 
 /** Type to see matching supermarket products (with photos) as a list; tap one to choose an amount. */
 export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = false }: { onPick: (p: PickedFood) => void; onClose?: () => void; initialQuery?: string; inline?: boolean }) {
-  const [store, setStore] = useState<string>("mercadona");
-  const [only, setOnly] = useState(false);
+  const sb = useSupabase();
+  const [store, setStore] = useState<string>(STORES[0].id);
   const [text, setText] = useState(initialQuery);
   const [items, setItems] = useState<CatalogProduct[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
-  const [debug, setDebug] = useState("");
   const [chosen, setChosen] = useState<CatalogProduct | null>(null);
   const [amount, setAmount] = useState("100");
   const cache = useRef(new Map<string, CatalogProduct[]>());
@@ -40,57 +42,52 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, inline]);
 
-  // Search while typing, after a short pause so every keystroke doesn't hit the catalog.
+  // Search while typing, after a short pause so every keystroke doesn't hit the database.
   useEffect(() => {
     const q = text.trim();
     const digits = /^\d+$/.test(q);
-    if (plainWords(q).length < 3 || (digits && q.length < 12 && !instant.current)) {
+    if (plainWords(q).length < 3 || (digits && q.length < 8)) {
       setStatus("idle");
       setError("");
-      if (plainWords(q).length < 3) setItems([]);
+      setItems([]);
       return;
     }
-    const key = digits ? q : plainWords(q);
+    const key = `${store}|${digits ? q : plainWords(q)}`;
     const hit = cache.current.get(key);
     if (hit) { setItems(hit); setStatus("done"); setError(""); return; }
 
-    const ctrl = new AbortController();
+    let stale = false;
     setStatus("loading");
-    const delay = instant.current ? 0 : 450;
+    const delay = instant.current ? 0 : 250;
     instant.current = false;
     const t = setTimeout(async () => {
       try {
         if (navigator.onLine === false) throw new Error("You're offline. Connect to search the catalog.");
-        const res = await fetch(`/api/catalog/search?${new URLSearchParams({ q })}`, { signal: ctrl.signal });
-        const data = await res.json().catch(() => ({}));
-        setDebug(data.debug ? JSON.stringify(data.debug) : "");
-        if (!res.ok) throw new Error(data.error || "Couldn't search the catalog.");
-        cache.current.set(key, data.products);
-        setItems(data.products);
+        const found = await searchCatalog(sb, store, digits ? q : plainWords(q));
+        if (stale) return;
+        cache.current.set(key, found);
+        setItems(found);
         setStatus("done");
         setError("");
       } catch (e) {
-        if (ctrl.signal.aborted) return;
+        if (stale) return;
         setStatus("error");
-        setError(e instanceof Error ? e.message : "Couldn't search the catalog.");
+        setError(e instanceof Error && e.message.startsWith("You're offline") ? e.message : "Couldn't search the catalog. Check your connection and try again.");
       }
     }, delay);
-    return () => { clearTimeout(t); ctrl.abort(); };
-  }, [text, nonce]);
+    return () => { stale = true; clearTimeout(t); };
+  }, [text, store, nonce, sb]);
 
-  // Narrow what's already on screen straight away while the next search is on its way.
-  const storeLabel = STORES.find((s) => s.id === store)?.label ?? "";
   const visible = useMemo(() => {
     const q = text.trim();
-    const base = /^\d+$/.test(q) ? items : items.filter((p) => matchesWords(q, p.name, p.brand));
-    const inStore = base.filter((p) => matchesStore(p, store));
-    if (only) return inStore;
-    return [...inStore, ...base.filter((p) => !matchesStore(p, store))];
-  }, [items, text, store, only]);
+    return /^\d+$/.test(q) ? items : rankProducts(q, items);
+  }, [items, text]);
 
-  const open = (p: CatalogProduct) => { setChosen(p); setAmount(String(p.servingAmount ?? 100)); };
+  const storeLabel = STORES.find((s) => s.id === store)?.label ?? "";
+  const open = (p: CatalogProduct) => { setChosen(p); setAmount("100"); };
   const amt = Number(amount) > 0 ? Number(amount) : 0;
   const scaled = chosen ? scaleProduct(chosen, amt) : null;
+  const sub = (p: CatalogProduct) => [p.brand, p.quantity, priceText(p.price)].filter(Boolean).join(" · ") || p.code;
 
   return (
     <div className={inline ? "" : "fixed inset-0 z-50 flex items-end justify-center bg-black/60 md:items-center"} onClick={inline ? undefined : onClose}>
@@ -109,39 +106,29 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Start typing, e.g. yogur natural" className="pl-10" aria-label="Search the catalog" autoFocus enterKeyHint="search" />
             </form>
-            <div role="radiogroup" aria-label="Store" className="flex flex-wrap gap-2">
-              {STORES.map((s) => (
-                <button key={s.id} type="button" role="radio" aria-checked={store === s.id} onClick={() => setStore(s.id)}
-                  className={cn("h-9 rounded-full border px-3 text-sm font-medium transition", store === s.id ? "border-accent bg-accent/15 text-accent" : "border-line bg-card2 text-muted")}>{s.label}</button>
-              ))}
-            </div>
-            <label className="flex min-h-9 items-center gap-3 text-sm">
-              <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} className="h-5 w-5 accent-[rgb(var(--accent))]" />
-              <span>Only show {storeLabel} products</span>
-            </label>
-
-            {status === "idle" && visible.length === 0 && <p className="px-1 text-sm text-muted">Type at least 3 letters and matching products appear. {storeLabel} products are listed first. You can also paste a barcode.</p>}
-            {status === "loading" && visible.length === 0 && <p className="px-1 text-sm text-muted">Searching…</p>}
-            {status === "error" && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-            {status === "done" && visible.length === 0 && (
-              <div className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
-                No matching products. Try other words{only ? " or turn off the store filter" : ""}.
-                {debug && <details className="mt-2 text-left text-xs"><summary className="cursor-pointer">Details</summary><p className="mt-1 break-all">{debug}</p></details>}
+            {STORES.length > 1 && (
+              <div role="radiogroup" aria-label="Store" className="flex flex-wrap gap-2">
+                {STORES.map((s) => (
+                  <button key={s.id} type="button" role="radio" aria-checked={store === s.id} onClick={() => setStore(s.id)}
+                    className={cn("h-9 rounded-full border px-3 text-sm font-medium transition", store === s.id ? "border-accent bg-accent/15 text-accent" : "border-line bg-card2 text-muted")}>{s.label}</button>
+                ))}
               </div>
             )}
+
+            {status === "idle" && visible.length === 0 && <p className="px-1 text-sm text-muted">Type at least 3 letters and matching {storeLabel} products appear. You can also paste a barcode.</p>}
+            {status === "loading" && visible.length === 0 && <p className="px-1 text-sm text-muted">Searching…</p>}
+            {status === "error" && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+            {status === "done" && visible.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">No matching {storeLabel} products. Try other words.</p>}
 
             {visible.length > 0 && (
               <ul className="overflow-hidden rounded-xl border border-line" aria-busy={status === "loading"}>
                 {visible.map((p) => (
-                  <li key={p.code} className="border-b border-line last:border-0">
+                  <li key={p.id} className="border-b border-line last:border-0">
                     <button type="button" disabled={!p.hasNutrition} onClick={() => open(p)} className="flex min-h-16 w-full items-center gap-3 bg-card px-3 py-2 text-left disabled:opacity-50">
                       <Thumb src={p.image} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{p.name}</span>
-                        <span className="block truncate text-xs text-muted">
-                          {[p.brand, p.quantity].filter(Boolean).join(" · ") || p.code}
-                          {matchesStore(p, store) && <span className="ml-1.5 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">{storeLabel}</span>}
-                        </span>
+                        <span className="block truncate text-xs text-muted">{sub(p)}</span>
                       </span>
                       <span className="num shrink-0 text-right text-xs text-muted">{p.hasNutrition ? <>{fmt(p.per100.calories)} kcal<br />{fmt(p.per100.protein, 1)} g protein<br />per 100 {p.unit}</> : "No nutrition data"}</span>
                     </button>
@@ -155,7 +142,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
           {chosen && scaled && (<>
             <div className="flex items-center gap-3">
               <Thumb src={chosen.image} size={64} />
-              <div className="min-w-0"><p className="text-base font-semibold">{chosen.name}</p><p className="text-sm text-muted">{[chosen.brand, chosen.quantity].filter(Boolean).join(" · ")}</p></div>
+              <div className="min-w-0"><p className="text-base font-semibold">{chosen.name}</p><p className="text-sm text-muted">{sub(chosen)}</p></div>
             </div>
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-muted">Amount ({chosen.unit})</span>
@@ -163,7 +150,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
             </label>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setAmount("100")} className="h-9 rounded-full border border-line bg-card2 px-3 text-sm">100 {chosen.unit}</button>
-              {chosen.servingAmount && <button type="button" onClick={() => setAmount(String(chosen.servingAmount))} className="h-9 rounded-full border border-line bg-card2 px-3 text-sm">1 serving ({chosen.servingAmount} {chosen.unit})</button>}
+              {chosen.packAmount && chosen.packAmount !== 100 && <button type="button" onClick={() => setAmount(String(chosen.packAmount))} className="h-9 rounded-full border border-line bg-card2 px-3 text-sm">Whole pack ({fmt(chosen.packAmount)} {chosen.unit})</button>}
             </div>
             <div className="rounded-2xl border border-line bg-card2 px-4 py-3">
               <p className="num text-3xl font-bold">{fmt(scaled.calories)} <span className="text-base font-medium text-muted">kcal</span></p>
@@ -174,7 +161,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
             <Button type="button" className="w-full" disabled={amt <= 0} onClick={() => onPick({ code: chosen.code, name: displayName(chosen), serving: `${fmt(amt, 2)} ${chosen.unit}`, ...scaled })}>Use this food</Button>
           </>)}
 
-          <p className="pb-1 text-center text-xs text-muted">Product data and photos from <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline">Open Food Facts</a> contributors (ODbL, photos CC BY-SA). Volunteers add it, so check it against the label.</p>
+          <p className="pb-1 text-center text-xs text-muted">Products, prices and photos from Mercadona&apos;s online store. Nutrition from the community-run MercaAPI, not Mercadona, so check it against the label.</p>
         </div>
       </div>
     </div>

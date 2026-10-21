@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GoalDay } from "@/lib/calc";
+import { CATALOG_COLUMNS, productFromRow, searchStems, type CatalogProduct, type CatalogRow } from "@/lib/catalog";
 import { groupDaily } from "@/lib/history";
 import type { ActivityLog, DayTotals, FriendCardData, FriendPerms, FriendshipRow, Food, FoodLog, Meal, MealLog } from "@/lib/types";
 
@@ -25,6 +26,20 @@ export async function fetchGoalTotals(sb: SupabaseClient, from: string, to: stri
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     date: String(r.log_date), food: Number(r.food_calories), exercise: Number(r.exercise_calories),
   }));
+}
+
+/** Searches one store's catalog by barcode or by typed words (each word must start a word of the name or brand). */
+export async function searchCatalog(sb: SupabaseClient, store: string, typed: string): Promise<CatalogProduct[]> {
+  let q = sb.from("catalog_products").select(CATALOG_COLUMNS).eq("store", store);
+  if (/^\d{8,14}$/.test(typed)) q = q.eq("ean", typed);
+  else {
+    const stems = searchStems(typed);
+    if (stems.length === 0) return [];
+    for (const s of stems) q = q.ilike("search_text", `% ${s}%`);
+  }
+  const { data, error } = await q.order("name").limit(80);
+  if (error) throw error;
+  return ((data ?? []) as unknown as CatalogRow[]).map(productFromRow);
 }
 
 export async function fetchFoods(sb: SupabaseClient, userId: string): Promise<Food[]> {

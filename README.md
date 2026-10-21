@@ -22,7 +22,7 @@ Mobile-first calorie, protein and cardio tracker for friends. Next.js (App Route
 - One date bar on Home, Diary, Add and Friends. The date you pick stays when you switch tabs, and Friends shows that date too
 - Fast, app-like feel: your data is loaded onto the phone, tabs switch without waiting, and saves show up instantly (and roll back with a message if they fail). Saving is refused while offline so nothing is silently lost
 - iPhone launch screen, shown instantly when opened from the Home Screen
-- Supermarket catalog: search Mercadona (and Carrefour, Dia, Lidl, Alcampo, Eroski, Aldi, Consum, or all of Spain) by name or barcode, pick an amount in g or ml, and continue to Log food with the values filled in. The catalog has its own button on the Add tab. Data comes from Open Food Facts (ODbL), searched through the app's server with caching
+- Supermarket catalog: search Mercadona products by name or barcode, pick an amount in g or ml, and continue to Log food with the values filled in. The catalog has its own button on the Add tab. Products live in the app's own database (`catalog_products`), loaded from a spreadsheet with `scripts/import_catalog.py`
 - Database schema, indexes and RLS policies for every table
 - All calculations live in `lib/calc.ts` with unit tests (`npm test`)
 
@@ -91,13 +91,12 @@ Open the site in Safari → Share → **Add to Home Screen**.
 Calorie targets and maintenance numbers are estimates. The app warns on very low or aggressive targets and never claims to measure body fat.
 
 ## Supermarket catalog
-- Source: [Open Food Facts](https://world.openfoodfacts.org), an open database filled in by volunteers. Coverage of Mercadona is good but not complete, and individual values can be wrong. The app warns when values look inconsistent.
-- Typing 3 or more letters shows matching products with photos as you type. Products from the chosen store (Mercadona also covers its Hacendado brand) are listed first, with an option to show only that store.
-- Text search uses Open Food Facts' search service (search.openfoodfacts.org) through `/api/catalog/search` (signed-in users only). The older search address is only a backup. Barcodes use the product API.
-- Answers are cached for a day, searches wait for a short pause in typing, and each person is limited to 40 searches a minute.
-- If a search finds nothing or fails, the "Details" line under the message shows what the catalog returned, which helps when reporting a problem.
-- Optional: set `OFF_CONTACT_EMAIL` in Vercel so Open Food Facts can contact you. Without it your site URL is used.
-- Foods you pick are copied into your own entries and saved foods. Attribution to Open Food Facts is shown in the catalog.
+- Products live in the `catalog_products` table (migration `0007_catalog.sql`), one row per store and store product id. Signed-in users can read it; only the import script (service key) can write.
+- Typing 3 or more letters shows matching products with photos as you type; every typed word must start a word of the name or brand (no accents or capitals needed, plurals work). A pasted barcode (8 to 14 digits) is looked up by EAN.
+- Data: Mercadona's online store for Barcelona (price, category, photo) joined with nutrition from the community-run MercaAPI. Both are unofficial, so values can be wrong; products without calories show "No nutrition data". The catalog says this under the results.
+- Load or refresh a store: run `mercadona_bcn_catalog.py` to make the spreadsheet, then `python scripts/import_catalog.py <file>.xlsx --store mercadona` (see the top of that file for the two environment variables; the service key is secret and never goes in the app or on GitHub). Add `--dry-run` to check the file first and `--replace` to drop that store's old rows.
+- Add another store: import its spreadsheet with a new `--store` id (same column names), then add `{ id, label }` to `STORES` in `lib/catalog.ts`. Store buttons appear once there is more than one.
+- Foods you pick are copied into your own entries and saved foods.
 
 ## How the app stays fast
 - The server only checks you are signed in and finished onboarding. Everything else is fetched by the browser straight from Supabase and kept in a cache (TanStack Query), saved on the device in IndexedDB so the app opens with your last data.
