@@ -7,7 +7,7 @@ import { DateTimeFields } from "@/components/datetime-fields";
 import { IngredientSheet } from "@/components/ingredient-sheet";
 import { NutrientFields } from "@/components/nutrient-fields";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea, Toggle } from "@/components/ui/field";
 import { useSaveEntry, type ItemInput } from "@/lib/client/mutations";
 import { FormError, parseNum, parseText } from "@/lib/client/validate";
 import { emptyNutrientStrings, NUTRIENT_KEYS, NUTRIENTS, readNutrients, sumItems, toNutrientStrings, type NutrientKey, type NutrientStrings } from "@/lib/nutrition";
@@ -89,7 +89,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
       sent.current = true;
       save.mutate({
         existing: initial ? { kind: initial.kind, id: initial.id, date: initial.date } : undefined,
-        date, loggedAt, notes: parseText(notes, "notes", 500) || null, items, comboName: name, saveToLibrary: false,
+        date, loggedAt, notes: parseText(notes, "notes", 500) || null, items, comboName: name, saveToLibrary: !editing && !quick && fd.get("save_ingredient") === "on",
       });
       setDate(date);
       if (editing) (window.history.length > 1 ? router.back() : router.push("/diary"));
@@ -101,11 +101,18 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
   }
 
   return (
+    <>
     <form onSubmit={submit} className="space-y-5" noValidate>
       <Field label="Food name"><Input value={main.name} onChange={(e) => setMain((m) => ({ ...m, name: e.target.value, food_id: null }))} maxLength={100} placeholder="e.g. Greek yoghurt" /></Field>
+      {!quick && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Serving size" hint="Optional, e.g. 200 g"><Input value={main.serving} onChange={(e) => setMain((m) => ({ ...m, serving: e.target.value }))} maxLength={100} /></Field>
+          <Field label="Number of servings"><Input type="number" inputMode="decimal" step="any" min="0.01" value={main.qty} onChange={(e) => setMain((m) => ({ ...m, qty: e.target.value }))} /></Field>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Calories"><Input type="number" inputMode="decimal" step="any" min="0" value={main.cal} onChange={(e) => setMain((m) => ({ ...m, cal: e.target.value, food_id: null }))} placeholder="kcal" /></Field>
-        <Field label="Protein"><Input type="number" inputMode="decimal" step="any" min="0" value={main.protein} onChange={(e) => setMain((m) => ({ ...m, protein: e.target.value, food_id: null }))} placeholder="g" /></Field>
+        <Field label={quick ? "Calories" : "Calories per serving"}><Input type="number" inputMode="decimal" step="any" min="0" value={main.cal} onChange={(e) => setMain((m) => ({ ...m, cal: e.target.value, food_id: null }))} placeholder="kcal" /></Field>
+        <Field label={quick ? "Protein" : "Protein per serving"}><Input type="number" inputMode="decimal" step="any" min="0" value={main.protein} onChange={(e) => setMain((m) => ({ ...m, protein: e.target.value, food_id: null }))} placeholder="g" /></Field>
       </div>
       {!quick && <NutrientFields values={main.nutrients} onChange={(k: NutrientKey, v) => setMain((m) => ({ ...m, nutrients: { ...m.nutrients, [k]: v } }))} />}
 
@@ -139,20 +146,25 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
       <DateTimeFields date={initial?.date ?? selected} today={today} initialTime={initial?.time} />
 
       {!quick && (
-        <details open={Boolean(initial && (main.qty !== "1" || main.serving || notes))} className="rounded-xl border border-line bg-card">
-          <summary className="flex min-h-12 cursor-pointer items-center px-4 text-sm font-medium">More details <span className="ml-2 font-normal text-muted">size, servings, notes</span></summary>
+        <details open={Boolean(initial && notes)} className="rounded-xl border border-line bg-card">
+          <summary className="flex min-h-12 cursor-pointer items-center px-4 text-sm font-medium">More details <span className="ml-2 font-normal text-muted">notes</span></summary>
           <div className="space-y-3 px-4 pb-4">
-            <Field label="Serving size" hint="Optional, e.g. 200 g"><Input value={main.serving} onChange={(e) => setMain((m) => ({ ...m, serving: e.target.value }))} maxLength={100} /></Field>
-            <Field label="Number of servings" hint="The calories and protein above are for one serving"><Input type="number" inputMode="decimal" step="any" min="0.01" value={main.qty} onChange={(e) => setMain((m) => ({ ...m, qty: e.target.value }))} /></Field>
             <Field label="Notes"><Textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></Field>
           </div>
         </details>
       )}
 
+      {!quick && !editing && (
+        <div className="rounded-xl border border-line bg-card px-4">
+          <Toggle name="save_ingredient" label="Save to my ingredients" hint="Reuse it later with Add ingredient" />
+        </div>
+      )}
+
       {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <Button type="submit" className="w-full">{editing ? "Save changes" : "Add to diary"}</Button>
-
-      {pickingIngredient && <IngredientSheet onClose={() => setPickingIngredient(false)} onPick={(f) => { setExtras((l) => [...l, rowFromFood(f)]); setPickingIngredient(false); }} />}
     </form>
+    {/* Outside the form: a form inside a form made "Save and add" also submit the food being logged. */}
+    {pickingIngredient && <IngredientSheet onClose={() => setPickingIngredient(false)} onPick={(f) => { setExtras((l) => [...l, rowFromFood(f)]); setPickingIngredient(false); }} />}
+    </>
   );
 }

@@ -77,6 +77,7 @@ export function HomeView() {
 
       {empty && <p className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">Nothing logged {date === today ? "yet today" : "on this day"}. Tap + to add your first entry.</p>}
 
+      <GoalDeficitCard start={profile.goal_start_date} today={today} targets={t} />
       {(profile.goal_description || goalDays !== null) && (
         <Card className="space-y-2">
           <p className="font-semibold">{profile.goal_description || "Your goal"}</p>
@@ -90,7 +91,6 @@ export function HomeView() {
           </>)}
         </Card>
       )}
-      <GoalDeficitCard start={profile.goal_start_date} today={today} targets={t} />
       <p className="px-1 text-center text-xs text-muted">Calories and exercise are estimates. They can&apos;t measure body fat.</p>
     </>
   );

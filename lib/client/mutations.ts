@@ -89,17 +89,22 @@ export function useSaveEntry() {
       assertOnline();
       const single = inp.items.length === 1 && inp.existing?.kind !== "meal" && !inp.fromMealId;
 
+      // "Save to my ingredients": the first item (the food being logged) is saved as one reusable unit.
+      let savedFoodId: string | null = null;
+      const first = inp.items[0];
+      if (!inp.existing && inp.saveToLibrary && first && !first.food_id) {
+        const { data, error } = await sb.from("foods").insert({
+          user_id: userId, name: first.name, serving_description: first.serving_description,
+          calories_per_serving: first.calories, protein_per_serving: first.protein, ...nutrientColumns(first.nutrients),
+        }).select("id").single();
+        if (error || !data) throw error ?? new Error("insert failed");
+        savedFoodId = data.id as string;
+        qc.invalidateQueries({ queryKey: qk.foods });
+      }
+
       if (single) {
         const it = inp.items[0];
-        let foodId = it.food_id;
-        if (!inp.existing && inp.saveToLibrary && !foodId) {
-          const { data, error } = await sb.from("foods").insert({
-            user_id: userId, name: it.name, serving_description: it.serving_description,
-            calories_per_serving: it.calories, protein_per_serving: it.protein, ...nutrientColumns(it.nutrients),
-          }).select("id").single();
-          if (error) throw error;
-          foodId = data.id;
-        }
+        const foodId = savedFoodId ?? it.food_id;
         const row = {
           food_id: foodId, food_name_snapshot: it.name, serving_description_snapshot: it.serving_description,
           servings: it.qty, calories_per_serving: it.calories, protein_per_serving: it.protein, ...nutrientColumns(it.nutrients),

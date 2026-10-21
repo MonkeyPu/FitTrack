@@ -43,6 +43,7 @@ export function IngredientSheet({ onPick, onClose }: { onPick: (f: Food) => void
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
+    e.stopPropagation();
     setError("");
     try {
       const input = {
