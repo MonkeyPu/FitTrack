@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Package, Search, X } from "lucide-react";
+import { ArrowLeft, Package, ScanBarcode, Search, X } from "lucide-react";
+import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { STORES, displayName, imageAt, plainWords, priceText, scaleProduct, type CatalogProduct, type PickedFood } from "@/lib/catalog";
@@ -33,14 +34,15 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
   const [amount, setAmount] = useState("100");
   const cache = useRef(new Map<string, CatalogProduct[]>());
   const [nonce, setNonce] = useState(0);
+  const [scanning, setScanning] = useState(false);
   const instant = useRef(false);
 
   useEffect(() => {
     if (inline || !onClose) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !scanning && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, inline]);
+  }, [onClose, inline, scanning]);
 
   // Search while typing, after a short pause so every keystroke doesn't hit the database.
   useEffect(() => {
@@ -80,6 +82,18 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
 
   const visible = items;
 
+  // A scanned barcode goes into the search box. When exactly one product has it, open it right away.
+  const onScan = async (code: string) => {
+    setScanning(false);
+    setChosen(null);
+    setText(code);
+    instant.current = true;
+    try {
+      const found = await searchCatalog(sb, store, code);
+      if (found.length === 1 && found[0].hasNutrition) open(found[0]);
+    } catch { /* the normal search below shows the error */ }
+  };
+
   const storeLabel = STORES.find((s) => s.id === store)?.label ?? "";
   const open = (p: CatalogProduct) => { setChosen(p); setAmount("100"); };
   const amt = Number(amount) > 0 ? Number(amount) : 0;
@@ -87,6 +101,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
   const sub = (p: CatalogProduct) => [p.brand, p.quantity, priceText(p.price)].filter(Boolean).join(" · ") || p.code;
 
   return (
+    <>
     <div className={inline ? "" : "fixed inset-0 z-50 flex items-end justify-center bg-black/60 md:items-center"} onClick={inline ? undefined : onClose}>
       <div role={inline ? undefined : "dialog"} aria-modal={inline ? undefined : true} aria-label="Supermarket catalog" onClick={(e) => e.stopPropagation()}
         className={inline ? "" : "flex max-h-[88dvh] w-full max-w-md flex-col rounded-t-3xl border border-line bg-card md:rounded-3xl"}>
@@ -101,7 +116,8 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
           {!chosen && (<>
             <form onSubmit={(e) => { e.preventDefault(); instant.current = true; setNonce((n) => n + 1); }} className="relative">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search, e.g. chicken breast or yogur" className="pl-10" aria-label="Search the catalog" autoFocus enterKeyHint="search" />
+              <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search, e.g. chicken breast or yogur" className="pl-10 pr-14" aria-label="Search the catalog" autoFocus enterKeyHint="search" />
+              <button type="button" aria-label="Scan a barcode" onClick={() => setScanning(true)} className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-accent"><ScanBarcode className="h-5 w-5" /></button>
             </form>
             {STORES.length > 1 && (
               <div role="radiogroup" aria-label="Store" className="flex flex-wrap gap-2">
@@ -112,10 +128,10 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
               </div>
             )}
 
-            {status === "idle" && visible.length === 0 && <p className="px-1 text-sm text-muted">Type at least 3 letters, in English or Spanish, and matching {storeLabel} products appear. You can also paste a barcode.</p>}
+            {status === "idle" && visible.length === 0 && <p className="px-1 text-sm text-muted">Type at least 3 letters, in English or Spanish, and matching {storeLabel} products appear. You can also scan a barcode or paste its number.</p>}
             {status === "loading" && visible.length === 0 && <p className="px-1 text-sm text-muted">Searching…</p>}
             {status === "error" && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-            {status === "done" && visible.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">No matching {storeLabel} products. Try fewer or different words.</p>}
+            {status === "done" && visible.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">{/^\d+$/.test(text.trim()) ? `No ${storeLabel} product has the barcode ${text.trim()}. Try typing its name instead.` : `No matching ${storeLabel} products. Try fewer or different words.`}</p>}
 
             {visible.length > 0 && (
               <ul className="overflow-hidden rounded-xl border border-line" aria-busy={status === "loading"}>
@@ -162,5 +178,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
         </div>
       </div>
     </div>
+    {scanning && <BarcodeScanner onDetect={onScan} onClose={() => setScanning(false)} />}
+    </>
   );
 }
