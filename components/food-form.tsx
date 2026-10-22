@@ -71,7 +71,9 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
 
   const n = (s: string) => (Number.isFinite(Number(s)) && s !== "" ? Number(s) : 0);
   const preview = sumItems([main, ...extras].map((r) => ({ qty: n(r.qty), calories: n(r.cal), protein: n(r.protein), nutrients: Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, n(r.nutrients[k])])) as never })));
-  const isCombo = extras.length > 0 || initial?.kind === "meal";
+  // With ingredients added, the food above is optional: leave it empty to log just the ingredients.
+  const mainBlank = extras.length > 0 && !main.name.trim() && !main.cal.trim() && !main.protein.trim();
+  const isCombo = extras.length + (mainBlank ? 0 : 1) > 1 || initial?.kind === "meal";
   const autoName = [main.name, ...extras.map((e) => e.name)].filter(Boolean).join(" + ").slice(0, 100);
   const shownCombo = comboTouched ? comboName : autoName;
 
@@ -84,12 +86,12 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
       const date = String(fd.get("log_date") ?? "");
       const loggedAt = String(fd.get("logged_at") ?? "");
       if (!date || !loggedAt) throw new FormError("Choose a date and time.");
-      const items = [toItem(main, "food"), ...extras.map((r, i) => toItem(r, `ingredient ${i + 1}`))];
+      const items = [...(mainBlank ? [] : [toItem(main, "food")]), ...extras.map((r, i) => toItem(r, `ingredient ${i + 1}`))];
       const name = parseText(shownCombo, "combo name", 100, isCombo);
       sent.current = true;
       save.mutate({
         existing: initial ? { kind: initial.kind, id: initial.id, date: initial.date } : undefined,
-        date, loggedAt, notes: parseText(notes, "notes", 500) || null, items, comboName: name, saveToLibrary: !editing && !quick && fd.get("save_ingredient") === "on",
+        date, loggedAt, notes: parseText(notes, "notes", 500) || null, items, comboName: name, saveToLibrary: !editing && !quick && !mainBlank && fd.get("save_ingredient") === "on",
       });
       setDate(date);
       if (editing) (window.history.length > 1 ? router.back() : router.push("/diary"));
@@ -114,7 +116,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
         <Field label={quick ? "Calories" : "Calories per serving"}><Input type="number" inputMode="decimal" step="any" min="0" value={main.cal} onChange={(e) => setMain((m) => ({ ...m, cal: e.target.value, food_id: null }))} placeholder="kcal" /></Field>
         <Field label={quick ? "Protein" : "Protein per serving"}><Input type="number" inputMode="decimal" step="any" min="0" value={main.protein} onChange={(e) => setMain((m) => ({ ...m, protein: e.target.value, food_id: null }))} placeholder="g" /></Field>
       </div>
-      {!quick && <NutrientFields values={main.nutrients} onChange={(k: NutrientKey, v) => setMain((m) => ({ ...m, nutrients: { ...m.nutrients, [k]: v } }))} />}
+      <NutrientFields values={main.nutrients} onChange={(k: NutrientKey, v) => setMain((m) => ({ ...m, nutrients: { ...m.nutrients, [k]: v } }))} />
 
       {!quick && (
         <div className="space-y-3">
@@ -132,6 +134,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
             </div>
           ))}
           <Button type="button" variant="secondary" className="w-full" onClick={() => setPickingIngredient(true)}><Plus className="h-4 w-4" />Add ingredient</Button>
+          {extras.length > 0 && <p className="px-1 text-xs text-muted">The food name, calories and protein above are optional once you add an ingredient.</p>}
         </div>
       )}
 
@@ -154,7 +157,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
         </details>
       )}
 
-      {!quick && !editing && (
+      {!quick && !editing && !mainBlank && (
         <div className="rounded-xl border border-line bg-card px-4">
           <Toggle name="save_ingredient" label="Save to my ingredients" hint="Reuse it later with Add ingredient" />
         </div>

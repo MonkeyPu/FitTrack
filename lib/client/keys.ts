@@ -8,6 +8,7 @@ export const qk = {
   friendCards: (date: string) => ["friend-cards", date] as const,
   friendships: ["friendships"] as const,
   friendPerms: ["friend-perms"] as const,
+  friendOrder: ["friend-order"] as const,
   friendHistory: (id: string, from: string, to: string) => ["friend-history", id, from, to] as const,
   friendSearch: (q: string) => ["friend-search", q] as const,
 };

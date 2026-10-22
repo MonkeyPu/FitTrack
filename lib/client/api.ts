@@ -3,7 +3,7 @@ import type { GoalDay } from "@/lib/calc";
 import { barcodeVariants } from "@/lib/barcode";
 import { CATALOG_COLUMNS, productFromRow, searchGroups, type CatalogProduct, type CatalogRow } from "@/lib/catalog";
 import { groupDaily } from "@/lib/history";
-import type { ActivityLog, DayTotals, FriendCardData, FriendPerms, FriendshipRow, Food, FoodLog, Meal, MealLog } from "@/lib/types";
+import type { ActivityLog, DayTotals, FriendCardData, FriendPerms, FriendshipRow, Food, FoodLog, Meal, MealLog, FriendOrder } from "@/lib/types";
 
 export type DayData = { foods: FoodLog[]; meals: MealLog[]; activities: ActivityLog[] };
 
@@ -88,6 +88,12 @@ export async function fetchFriendPerms(sb: SupabaseClient): Promise<FriendPerms[
   return (data ?? []) as FriendPerms[];
 }
 
+export async function fetchFriendOrder(sb: SupabaseClient): Promise<FriendOrder[]> {
+  const { data, error } = await sb.from("friend_order").select("friend_id, position").order("position");
+  if (error) throw error;
+  return (data ?? []) as FriendOrder[];
+}
+
 export async function fetchFriendHistory(sb: SupabaseClient, friendId: string, from: string, to: string): Promise<DayTotals[]> {
   const { data, error } = await sb.rpc("friend_history", { fid: friendId, from_d: from, to_d: to });
   if (error) throw error;
@@ -109,3 +115,15 @@ export async function fetchLog(sb: SupabaseClient, kind: "food" | "meal" | "acti
   if (error) throw error;
   return data as unknown as FoodLog | MealLog | ActivityLog | null;
 }
+
+/** Open Food Facts search through our own server route (which adds the app's name, caching and a rate limit). */
+export async function searchOff(typed: string): Promise<CatalogProduct[]> {
+  const res = await fetch(`/api/catalog/search?q=${encodeURIComponent(typed)}`, { headers: { Accept: "application/json" } });
+  const data = (await res.json().catch(() => ({}))) as { products?: CatalogProduct[]; error?: string };
+  if (!res.ok) throw new Error(data.error || "Open Food Facts didn't respond. Try again in a moment.");
+  return data.products ?? [];
+}
+
+/** Searches one source (see CATALOGS in lib/catalog.ts) by barcode or typed words. */
+export const searchSource = (sb: SupabaseClient, source: string, typed: string) =>
+  source === "off" ? searchOff(typed) : searchCatalog(sb, source, typed);

@@ -17,11 +17,12 @@ export async function signUp(_: State, fd: FormData): Promise<State> {
   const { data, error } = await supabase.auth.signUp({
     email: p.data.email,
     password: p.data.password,
-    options: { emailRedirectTo: `${await getSiteUrl()}/auth/callback?next=/onboarding` },
+    options: { emailRedirectTo: `${await getSiteUrl()}/auth/callback?next=/auth/confirmed` },
   });
   if (error) return { error: error.message };
   if (data.session) return { ok: true, redirectTo: "/onboarding" };
-  return { ok: true, message: "Check your email to confirm your account, then log in." };
+  // Straight to the log in page: the person confirms the email, comes back to the app and logs in, with nothing to tap first.
+  return { ok: true, redirectTo: "/login?confirm=1" };
 }
 
 export async function signIn(_: State, fd: FormData): Promise<State> {

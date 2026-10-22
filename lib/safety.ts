@@ -29,3 +29,13 @@ export function targetWarnings({ maintenance, maxFood, netTarget }: TargetInput)
 
 export const ESTIMATE_NOTE =
   "Maintenance calories and targets are rough estimates. Calorie logs alone can't tell you how much fat you've lost or gained.";
+
+/** Says whether the net calorie target means cutting, maintaining or bulking. */
+export function modeHint(maintenance: number, net: number): string {
+  const base = "Food calories minus logged exercise calories (kcal). Set it below maintenance to cut or above it to bulk.";
+  if (!(maintenance > 0) || !(net > 0)) return base;
+  const gap = Math.round(Math.abs(maintenance - net));
+  if (net > maintenance) return `Bulking: ${gap} kcal above maintenance. Aim to eat more than you use.`;
+  if (net < maintenance) return `Cutting: ${gap} kcal below maintenance.`;
+  return "Maintaining: the same as your maintenance calories.";
+}

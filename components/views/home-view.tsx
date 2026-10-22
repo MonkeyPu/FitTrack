@@ -7,7 +7,7 @@ import { NetBar, ProgressBar, ProgressRing, statusText } from "@/components/prog
 import { PageSkeleton } from "@/components/skeleton";
 import { Card } from "@/components/ui/card";
 import { useDay } from "@/lib/client/hooks";
-import { hasTarget, summarize, statusOf, targetsOf } from "@/lib/calc";
+import { hasTarget, isBulking, netStatusOf, statusOf, summarize, targetsOf } from "@/lib/calc";
 import { addDays, daysBetween } from "@/lib/dates";
 import { parseNutrientGoals } from "@/lib/nutrition";
 import { cn, fmt } from "@/lib/utils";
@@ -26,8 +26,10 @@ export function HomeView() {
   const s = summarize(day.data.foods, day.data.meals, day.data.activities, t);
   const ys = yDay.data ? summarize(yDay.data.foods, yDay.data.meals, yDay.data.activities, t) : null;
   const foodStatus = statusOf(s.foodPct);
-  // Staying under the net target is the same as keeping at least the target deficit.
-  const deficitStatus = statusOf(s.netPct);
+  // When cutting, staying under the net target is the same as keeping at least the target deficit.
+  // When bulking (target above maintenance) the target is a minimum to reach.
+  const bulking = isBulking(t);
+  const netStatus = netStatusOf(s.netPct, bulking);
   const empty = day.data.foods.length + day.data.meals.length + day.data.activities.length === 0;
   const goals = parseNutrientGoals(profile.nutrient_goals);
   const goalDays = profile.goal_target_date ? daysBetween(today, profile.goal_target_date) : null;
@@ -62,14 +64,18 @@ export function HomeView() {
       </div>
 
       <Card className="space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-semibold">{s.deficit === null || s.deficit >= 0 ? "Deficit" : "Surplus"}</p>
-          <p className="num text-muted"><span className={cn("text-lg font-semibold", statusText[deficitStatus])}>{fmt(Math.abs(s.deficit ?? s.net))}</span> kcal{s.targetDeficit !== null ? ` · target ${fmt(s.targetDeficit)}` : ""}</p>
-        </div>
-        <NetBar net={s.net} target={hasTarget(t.netTarget) ? t.netTarget : null} status={deficitStatus} label="Net calories against your target" />
+        <p className="font-semibold">Net calories</p>
+        <p className="num">
+          <span className={cn("text-3xl font-bold", statusText[netStatus])}>{fmt(s.net)}</span>
+          {hasTarget(t.netTarget) && <span className="text-xl font-semibold text-muted"> / {fmt(t.netTarget)}</span>}
+          <span className="text-base font-normal text-muted"> kcal</span>
+        </p>
+        <NetBar net={s.net} target={hasTarget(t.netTarget) ? t.netTarget : null} status={netStatus} label="Net calories against your target" />
         <p className="num text-sm text-muted">
-          Net {fmt(s.net)} kcal{s.net < 0 ? " (exercise is more than food)" : ""}
-          {s.netRemaining !== null && ` · ${s.netRemaining >= 0 ? `${fmt(s.netRemaining)} to target` : `${fmt(-s.netRemaining)} over target`}`}
+          {s.deficit !== null && <>{s.deficit >= 0 ? "Deficit" : "Surplus"} {fmt(Math.abs(s.deficit))} kcal{s.targetDeficit !== null ? ` · target deficit ${fmt(s.targetDeficit)}` : s.targetSurplus !== null ? ` · target surplus ${fmt(s.targetSurplus)}` : ""}</>}
+          {s.deficit !== null && s.netRemaining !== null && " · "}
+          {s.netRemaining !== null && (s.netRemaining >= 0 ? `${fmt(s.netRemaining)} to target` : `${fmt(-s.netRemaining)} over target`)}
+          {s.net < 0 && " (exercise is more than food)"}
         </p>
       </Card>
 

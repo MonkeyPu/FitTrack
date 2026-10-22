@@ -1,13 +1,15 @@
 "use client";
 import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "@/components/app-context";
 import { Avatar } from "@/components/avatar";
 import { Empty } from "@/components/page-header";
 import { PageSkeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useFriendPerms, useFriendships } from "@/lib/client/hooks";
-import { useRemoveFriendship, useResetPerms, useSavePerms } from "@/lib/client/mutations";
+import { useFriendOrder, useFriendPerms, useFriendships } from "@/lib/client/hooks";
+import { moveId, sortByOrder } from "@/lib/friend-order";
+import { useRemoveFriendship, useResetPerms, useSaveFriendOrder, useSavePerms } from "@/lib/client/mutations";
 import type { FriendPerms } from "@/lib/types";
 
 const OPTIONS = [
@@ -34,18 +36,21 @@ export function ManageFriendsView() {
   const save = useSavePerms();
   const reset = useResetPerms();
   const remove = useRemoveFriendship();
+  const order = useFriendOrder();
+  const saveOrder = useSaveFriendOrder();
   if (!links.data || !perms.data) return <PageSkeleton />;
 
-  const friends = links.data.filter((l) => l.status === "accepted");
+  const friends = sortByOrder(links.data.filter((l) => l.status === "accepted"), (l) => l.other_id, (l) => l.display_name, order.data);
+  const ids = friends.map((f) => f.other_id);
   const custom = new Map(perms.data.map((p) => [p.friend_id, p]));
   const d = profile.privacy_settings;
   const defaults = { share_summary: d.share_summary, share_exercise: d.share_exercise, share_history: d.share_history, share_goal: d.share_goal };
 
   return (
     <>
-      <p className="px-1 text-sm text-muted">Choose what each friend can see. Friends without custom settings get your <Link href="/profile/privacy" className="text-accent">default sharing settings</Link>.</p>
+      <p className="px-1 text-sm text-muted">Use the arrows to choose the order your friends show in on the Friends tab. Choose what each friend can see. Friends without custom settings get your <Link href="/profile/privacy" className="text-accent">default sharing settings</Link>.</p>
       {friends.length === 0 && <Empty title="No friends yet">Friends you add will appear here.</Empty>}
-      {friends.map((f) => {
+      {friends.map((f, i) => {
         const mine = custom.get(f.other_id);
         const eff: FriendPerms = { friend_id: f.other_id, ...(mine ?? defaults) };
         return (
@@ -53,6 +58,12 @@ export function ManageFriendsView() {
             <div className="flex items-center gap-3 pb-2">
               <Avatar name={f.display_name} url={f.avatar_url} />
               <div className="min-w-0 flex-1"><p className="truncate font-semibold">{f.display_name}</p><p className="truncate text-sm text-muted">@{f.username} · {mine ? "custom settings" : "default settings"}</p></div>
+              {friends.length > 1 && (
+                <div className="flex shrink-0">
+                  <button type="button" aria-label={`Move ${f.display_name} up`} disabled={i === 0} onClick={() => saveOrder.mutate(moveId(ids, f.other_id, -1))} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted disabled:opacity-30"><ChevronUp className="h-5 w-5" /></button>
+                  <button type="button" aria-label={`Move ${f.display_name} down`} disabled={i === friends.length - 1} onClick={() => saveOrder.mutate(moveId(ids, f.other_id, 1))} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted disabled:opacity-30"><ChevronDown className="h-5 w-5" /></button>
+                </div>
+              )}
             </div>
             <div className="divide-y divide-line">
               {OPTIONS.map((o) => <Switch key={o.key} checked={eff[o.key]} label={o.label} hint={o.hint} onChange={(v) => save.mutate({ ...eff, [o.key]: v })} />)}

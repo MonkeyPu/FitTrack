@@ -176,4 +176,5 @@ export type FriendshipRow = {
 
 export type DayTotals = { date: string; food: number; protein: number; exercise: number | null };
 
+export type FriendOrder = { friend_id: string; position: number };
 export type FriendPerms = { friend_id: string; share_summary: boolean; share_exercise: boolean; share_history: boolean; share_goal: boolean };

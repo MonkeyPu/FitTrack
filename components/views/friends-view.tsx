@@ -10,13 +10,15 @@ import { PageSkeleton } from "@/components/skeleton";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Card, Section } from "@/components/ui/card";
 import { Input } from "@/components/ui/field";
-import { useFriendCards, useFriendSearch, useFriendships } from "@/lib/client/hooks";
+import { useFriendCards, useFriendOrder, useFriendSearch, useFriendships } from "@/lib/client/hooks";
 import { useRemoveFriendship, useRespondToRequest, useSendRequest } from "@/lib/client/mutations";
 import { daysBetween } from "@/lib/dates";
+import { sortByOrder } from "@/lib/friend-order";
 
 export function FriendsView() {
-  const { date, today, ready } = useApp();
+  const { date, today, ready, profile } = useApp();
   const cards = useFriendCards(date);
+  const order = useFriendOrder();
   const links = useFriendships();
   const respond = useRespondToRequest();
   const remove = useRemoveFriendship();
@@ -24,7 +26,9 @@ export function FriendsView() {
 
   const incoming = links.data.filter((l) => l.status === "pending" && l.incoming);
   const outgoing = links.data.filter((l) => l.status === "pending" && !l.incoming);
-  const list = cards.data ?? [];
+  const list = sortByOrder(cards.data ?? [], (c) => c.friend_id, (c) => c.display_name, order.data);
+  const sharing = profile.privacy_settings;
+  const allShared = sharing.share_summary && sharing.share_exercise && sharing.share_history && sharing.share_goal;
 
   return (
     <>
@@ -86,6 +90,11 @@ export function FriendsView() {
           </Card>
         </Section>
       )}
+
+      <p className="px-1 pb-2 text-center text-xs text-muted">
+        {allShared ? "All sharing is on, so friends can see your nutrition, exercise, history and goal. " : "Some of your sharing is turned off. "}
+        You can change this any time in <Link href="/profile/privacy" className="text-accent">Settings › Privacy</Link>, or for one friend in <Link href="/friends/manage" className="text-accent">Manage friends</Link>.
+      </p>
     </>
   );
 }

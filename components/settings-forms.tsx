@@ -7,7 +7,7 @@ import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, Input, Select, Textarea, Toggle } from "@/components/ui/field";
 import { NUTRIENTS, NUTRIENT_GOAL_KIND, parseNutrientGoals } from "@/lib/nutrition";
-import { ESTIMATE_NOTE, targetWarnings } from "@/lib/safety";
+import { ESTIMATE_NOTE, targetWarnings, modeHint } from "@/lib/safety";
 import type { Profile } from "@/lib/types";
 
 export function AccountForm({ profile }: { profile: Profile }) {
@@ -56,7 +56,7 @@ export function TargetsForm({ profile }: { profile: Profile }) {
     <form action={action} className="space-y-4">
       <Field label="Maintenance calories" hint="About how many calories you use per day, including normal activity (kcal)"><Input name="maintenance_calories" type="number" inputMode="numeric" value={v.maintenance} onChange={set("maintenance")} required /></Field>
       <Field label="Maximum food calories" hint="The most you want to eat per day (kcal)"><Input name="max_food_calories" type="number" inputMode="numeric" value={v.maxFood} onChange={set("maxFood")} required /></Field>
-      <Field label="Net calorie target" hint="Food calories minus logged exercise calories (kcal)"><Input name="net_calorie_target" type="number" inputMode="numeric" value={v.net} onChange={set("net")} required /></Field>
+      <Field label="Net calorie target" hint={modeHint(Number(v.maintenance), Number(v.net))}><Input name="net_calorie_target" type="number" inputMode="numeric" value={v.net} onChange={set("net")} required /></Field>
       <Field label="Daily protein goal" hint="Grams per day"><Input name="protein_goal" type="number" inputMode="numeric" value={v.protein} onChange={set("protein")} required /></Field>
       <Warnings items={warnings} />
 
@@ -124,7 +124,7 @@ export function PrivacyForm({ profile }: { profile: Profile }) {
   const p = profile.privacy_settings;
   return (
     <form action={action}>
-      <p className="mb-1 text-sm text-muted">These are the defaults for all your friends. Everything stays private until you turn it on, and friends never see your email or notes. You can choose different settings for individual friends in Manage friends.</p>
+      <p className="mb-1 text-sm text-muted">These are the defaults for all your friends. Everything is shared by default, so turn off anything you want to keep private. Friends never see your email or notes. You can choose different settings for individual friends in Manage friends.</p>
       <div className="divide-y divide-line">
         <Toggle name="share_summary" label="Daily nutrition summary" hint="Calories and protein for each day" defaultChecked={p.share_summary} />
         <Toggle name="share_exercise" label="Exercise" hint="Logged cardio and calories burned" defaultChecked={p.share_exercise} />

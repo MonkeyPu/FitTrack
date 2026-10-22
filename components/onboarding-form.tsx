@@ -6,7 +6,7 @@ import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { ESTIMATE_NOTE, targetWarnings } from "@/lib/safety";
+import { ESTIMATE_NOTE, modeHint, targetWarnings } from "@/lib/safety";
 
 const STEPS = ["About you", "Maintenance", "Daily targets", "Your goal"];
 
@@ -82,10 +82,10 @@ export function OnboardingForm({ userId }: { userId: string }) {
 
         {step === 2 && (<>
           <Field label="Maximum food calories" hint="The most you want to eat each day (kcal)"><Input value={v.max_food_calories} onChange={set("max_food_calories")} type="number" inputMode="numeric" /></Field>
-          <Field label="Target net calories" hint="Food calories minus logged exercise calories (kcal)"><Input value={v.net_calorie_target} onChange={set("net_calorie_target")} type="number" inputMode="numeric" /></Field>
+          <Field label="Target net calories" hint={modeHint(num(v.maintenance_calories), num(v.net_calorie_target))}><Input value={v.net_calorie_target} onChange={set("net_calorie_target")} type="number" inputMode="numeric" /></Field>
           <Field label="Daily protein goal" hint="Grams per day"><Input value={v.protein_goal} onChange={set("protein_goal")} type="number" inputMode="numeric" placeholder="e.g. 120" /></Field>
           <Warnings items={warnings} />
-          <p className="text-sm text-muted">These are approximate. Avoid aggressive calorie deficits, especially while you're still growing.</p>
+          <p className="text-sm text-muted">These are approximate. Avoid aggressive calorie deficits, especially while you're still growing. To bulk instead, set your net target above your maintenance calories.</p>
         </>)}
 
         {step === 3 && (<>

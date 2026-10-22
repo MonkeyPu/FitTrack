@@ -7,7 +7,7 @@ import type { DayData } from "@/lib/client/api";
 import { qk } from "@/lib/client/keys";
 import { FormError } from "@/lib/client/validate";
 import { nutrientColumns, readNutrients, sumItems, totalColumns, type Nutrients } from "@/lib/nutrition";
-import type { ActivityLog, Food, FoodLog, FriendPerms, FriendshipRow, Meal, MealLog } from "@/lib/types";
+import type { ActivityLog, Food, FoodLog, FriendPerms, FriendshipRow, Meal, MealLog, FriendOrder } from "@/lib/types";
 
 class AppError extends Error {}
 
@@ -449,6 +449,30 @@ export function useSavePerms() {
     },
     onError: (e, _v, ctx) => { qc.setQueryData(qk.friendPerms, ctx?.prev); toast(messageOf(e)); },
     onSettled: refresh,
+  });
+}
+
+/** Saves the order friends show in on the Friends tab. `ids` is every friend, first to last. */
+export function useSaveFriendOrder() {
+  const sb = useSupabase();
+  const qc = useQueryClient();
+  const { userId } = useApp();
+  const toast = useToast();
+  return useMutation({
+    networkMode: "always",
+    mutationFn: async (ids: string[]) => {
+      assertOnline();
+      const { error } = await sb.from("friend_order").upsert(ids.map((friend_id, position) => ({ owner_id: userId, friend_id, position })), { onConflict: "owner_id,friend_id" });
+      if (error) throw error;
+    },
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: qk.friendOrder });
+      const prev = qc.getQueryData<FriendOrder[]>(qk.friendOrder);
+      qc.setQueryData<FriendOrder[]>(qk.friendOrder, ids.map((friend_id, position) => ({ friend_id, position })));
+      return { prev };
+    },
+    onError: (e, _v, ctx) => { qc.setQueryData(qk.friendOrder, ctx?.prev); toast(messageOf(e)); },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.friendOrder }),
   });
 }
 

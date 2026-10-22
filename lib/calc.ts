@@ -45,6 +45,10 @@ export const percent = (value: number, target: number | null | undefined): numbe
 export const remaining = (target: number | null | undefined, value: number): number | null =>
   hasTarget(target) ? target - value : null;
 
+/** A net calorie target above maintenance means bulking: the aim is a surplus instead of a deficit. */
+export const isBulking = (t: Pick<Targets, "maintenance" | "netTarget">): boolean =>
+  hasTarget(t.maintenance) && hasTarget(t.netTarget) && t.netTarget > t.maintenance;
+
 export type Status = "none" | "ok" | "near" | "over";
 
 export function statusOf(pct: number | null): Status {
@@ -52,6 +56,16 @@ export function statusOf(pct: number | null): Status {
   if (pct > 100) return "over";
   if (pct >= 90) return "near";
   return "ok";
+}
+
+/**
+ * Colour for the net calorie bar. When cutting, going over the target is the warning. When bulking the target is
+ * a minimum to reach, so reaching it is fine and only going far past it gets a soft warning.
+ */
+export function netStatusOf(pct: number | null, bulking: boolean): Status {
+  if (!bulking) return statusOf(pct);
+  if (pct === null) return "none";
+  return pct > 125 ? "near" : "ok";
 }
 
 export type DaySummary = {
@@ -66,6 +80,8 @@ export type DaySummary = {
   deficit: number | null;
   /** maintenance minus the net calorie target, only when that is a real deficit */
   targetDeficit: number | null;
+  /** net calorie target minus maintenance, only when bulking */
+  targetSurplus: number | null;
   foodRemaining: number | null;
   netRemaining: number | null;
   proteinRemaining: number | null;
@@ -99,6 +115,7 @@ export function summarize(
       hasTarget(targets.maintenance) && hasTarget(targets.netTarget) && targets.maintenance > targets.netTarget
         ? targets.maintenance - targets.netTarget
         : null,
+    targetSurplus: isBulking(targets) ? targets.netTarget! - targets.maintenance! : null,
     foodRemaining: remaining(targets.maxFood, foodCalories),
     netRemaining: remaining(targets.netTarget, net),
     proteinRemaining: remaining(targets.protein, protein),
@@ -142,6 +159,8 @@ export type GoalDeficit = {
   deficit: number | null;
   /** what the daily target deficit adds up to over the same days */
   targetDeficit: number | null;
+  /** what the daily target surplus adds up to over the same days, when bulking */
+  targetSurplus: number | null;
 };
 
 /**
@@ -163,5 +182,6 @@ export function goalDeficit(days: GoalDay[], t: Pick<Targets, "maintenance" | "n
     net,
     deficit: hasM ? t.maintenance! * loggedDays - net : null,
     targetDeficit: hasM && hasTarget(t.netTarget) && t.maintenance! > t.netTarget! ? (t.maintenance! - t.netTarget!) * loggedDays : null,
+    targetSurplus: isBulking(t) ? (t.netTarget! - t.maintenance!) * loggedDays : null,
   };
 }

@@ -14,7 +14,7 @@ const modes = {
   reset: { action: changePassword, title: "Choose a new password", cta: "Update password" },
 } as const;
 
-export function AuthForm({ mode, notice }: { mode: keyof typeof modes; notice?: string }) {
+export function AuthForm({ mode, notice, info }: { mode: keyof typeof modes; notice?: string; info?: string }) {
   const m = modes[mode];
   const [state, action] = useActionState(m.action, {});
   // Nobody is signed in here, so make sure no saved copy of anyone's data stays on this device.
@@ -26,6 +26,7 @@ export function AuthForm({ mode, notice }: { mode: keyof typeof modes; notice?: 
       <h1 className="mb-1 text-3xl font-bold tracking-tight">{m.title}</h1>
       <p className="mb-6 text-muted">{mode === "signup" ? "Track food, protein and cardio with your friends." : "FitTrack"}</p>
       {notice && <p className="mb-4 rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn">{notice}</p>}
+      {info && <p role="status" className="mb-4 rounded-xl bg-accent/10 px-3 py-2 text-sm text-accent">{info}</p>}
       <form action={action} className="space-y-4">
         {mode !== "reset" && <Field label="Email"><Input name="email" type="email" autoComplete="email" inputMode="email" required /></Field>}
         {mode !== "forgot" && (
