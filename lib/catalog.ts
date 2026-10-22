@@ -1,3 +1,4 @@
+import { PHRASES, WORDS } from "./catalog-terms";
 import { zeroNutrients, type Nutrients } from "./nutrition";
 
 /**
@@ -111,29 +112,35 @@ const forms = (w: string) => {
 };
 
 /**
- * Word beginnings to look for in the database: no accents or capitals, plural endings trimmed,
- * so "yogures" finds "yogur". The strict check is done afterwards with matchesWords.
+ * Turns typed text into search groups for search_catalog(). Every group must match a product; inside a group any
+ * alternative will do. An alternative is the start of a word ("yogur"), or a whole word when it ends in $ ("sal$").
+ * Typed words match themselves and their singular forms, and English food words add their Spanish names
+ * (see catalog-terms.ts), so "chicken breast" looks for "pollo" and "pechuga".
  */
-export function searchStems(typed: string): string[] {
-  return tokens(typed).map((w) => [...forms(w)].sort((a, b) => a.length - b.length)[0]).filter(Boolean);
-}
-
-/**
- * True when every typed word starts a word of the name (or name + brand), so "yogur nat" finds
- * "Yogur natural". Plural and singular forms match each other ("yogures" finds "yogur").
- */
-export function matchesWords(typed: string, name: string, brand?: string | null): boolean {
+export function searchGroups(typed: string): string[] {
   const words = tokens(typed);
-  if (words.length === 0) return true;
-  const shown = tokens(`${name} ${brand ?? ""}`);
-  return words.every((w) => shown.some((s) => s.startsWith(w) || [...forms(w)].some((f) => forms(s).has(f))));
-}
-
-/** Keeps the products that match every typed word; names that start with the first word come first, then shorter names. */
-export function rankProducts(typed: string, list: CatalogProduct[]): CatalogProduct[] {
-  const first = tokens(typed)[0] ?? "";
-  const startsWith = (p: CatalogProduct) => (tokens(p.name)[0] ?? "").startsWith(first) ? 0 : 1;
-  return list
-    .filter((p) => matchesWords(typed, p.name, p.brand))
-    .sort((a, b) => startsWith(a) - startsWith(b) || a.name.length - b.name.length || a.name.localeCompare(b.name, "es"));
+  const phraseAt = (i: number) => {
+    for (const n of [3, 2, 1]) {
+      if (i + n > words.length) continue;
+      const head = words.slice(i, i + n - 1).join(" ");
+      for (const last of forms(words[i + n - 1])) {
+        const groups = PHRASES[head ? `${head} ${last}` : last];
+        if (groups) return { n, groups };
+      }
+    }
+    return null;
+  };
+  const groups: string[][] = [];
+  for (let i = 0; i < words.length;) {
+    const phrase = phraseAt(i);
+    if (phrase) { groups.push(...phrase.groups); i += phrase.n; continue; }
+    const w = words[i++];
+    const alts = new Set<string>([w]);
+    for (const f of forms(w)) {
+      if (f !== w) alts.add(`${f}$`);
+      for (const a of WORDS[f] ?? []) alts.add(a);
+    }
+    groups.push([...alts]);
+  }
+  return groups.slice(0, 8).map((g) => g.join("|"));
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { displayName, imageAt, matchesWords, plainWords, priceText, productFromRow, rankProducts, scaleProduct, searchStems, type CatalogRow } from "./catalog";
+import { displayName, imageAt, plainWords, priceText, productFromRow, scaleProduct, searchGroups, type CatalogRow } from "./catalog";
+import { PHRASES, WORDS } from "./catalog-terms";
 
 const row = (o: Partial<CatalogRow> = {}): CatalogRow => ({
   id: "1", store: "mercadona", product_id: "4241", ean: "8402001027482", name: "Yogur natural", brand: "Hacendado", category: "Lácteos",
@@ -65,22 +66,32 @@ describe("typed text", () => {
     expect(plainWords("mac & cheese")).toBe("mac and cheese");
     expect(plainWords("*?%")).toBe("");
   });
-  it("turns typed words into accent-free word starts for the database", () => {
-    expect(searchStems("Yogures Naturales")).toEqual(["yogur", "natural"]);
-    expect(searchStems("jamón")).toEqual(["jamon"]);
-    expect(searchStems("leche")).toEqual(["leche"]);
+});
+
+describe("searchGroups", () => {
+  it("looks for the start of each typed word, plus singular forms as whole words", () => {
+    expect(searchGroups("Yogures")).toEqual(["yogures|yogure$|yogur$"]);
+    expect(searchGroups("jamón serrano")).toEqual(["jamon", "serrano"]);
   });
-  it("matches typed words against the start of words in the name or brand", () => {
-    expect(matchesWords("yogur nat", "Yogur natural", "Hacendado")).toBe(true);
-    expect(matchesWords("hacendado yogur", "Yogur natural", "Hacendado")).toBe(true);
-    expect(matchesWords("yogures", "Yogur natural", null)).toBe(true);
-    expect(matchesWords("jamon", "Jamón cocido", null)).toBe(true);
-    expect(matchesWords("leche", "Yogur natural", "Hacendado")).toBe(false);
-    expect(matchesWords("ham", "Champagne", null)).toBe(false);
+  it("adds the Spanish names of English words", () => {
+    expect(searchGroups("chicken breast")).toEqual(["chicken|pollo", "breast|pechuga"]);
+    expect(searchGroups("Olive oil")).toEqual(["olive|oliva|aceituna", "oil|aceite"]);
+    expect(searchGroups("eggs")).toContain("eggs|egg$|huevo");
+    expect(searchGroups("gluten free bread")).toEqual(["gluten", "free|sin", "bread|pan$|panes$|panecillo|baguette|barra"]);
   });
-  it("lists names that start with the first word first, then shorter names", () => {
-    const list = [row({ id: "a", name: "Yogur de leche entera" }), row({ id: "b", name: "Postre de leche" }), row({ id: "c", name: "Leche entera Hacendado" }), row({ id: "d", name: "Leche" })].map(productFromRow);
-    expect(rankProducts("leche", list).map((p) => p.id)).toEqual(["d", "c", "b", "a"]);
-    expect(rankProducts("leche entera", list).map((p) => p.id)).toEqual(["c", "a"]);
+  it("understands phrases, including plurals", () => {
+    expect(searchGroups("ice cream")).toEqual(["helado"]);
+    expect(searchGroups("green beans")).toEqual(["judia", "verde"]);
+    expect(searchGroups("soy milk 1l")).toEqual(["soja", "bebida|leche", "1l"]);
+    expect(searchGroups("crisps")).toEqual(["patata", "frita|chip"]);
+  });
+  it("keeps at most 8 groups and never builds database syntax from typed text", () => {
+    expect(searchGroups("a b c d e f g h i j k")).toHaveLength(8);
+    expect(searchGroups("100% (milk)_ | x")).toEqual(["100", "milk|leche", "x"]);
+  });
+  it("only has safe, lower-case, accent-free entries in the word list", () => {
+    const entries = [...Object.entries(WORDS).flatMap(([k, v]) => [k, ...v]), ...Object.entries(PHRASES).flatMap(([k, v]) => [k, ...v.flat()])];
+    for (const e of entries) expect(e.replace(/ /g, "")).toMatch(/^[a-z0-9]+\$?$/);
+    for (const v of [...Object.values(WORDS), ...Object.values(PHRASES).flat()]) expect(v.length).toBeGreaterThan(0);
   });
 });

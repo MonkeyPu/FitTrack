@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GoalDay } from "@/lib/calc";
-import { CATALOG_COLUMNS, productFromRow, searchStems, type CatalogProduct, type CatalogRow } from "@/lib/catalog";
+import { CATALOG_COLUMNS, productFromRow, searchGroups, type CatalogProduct, type CatalogRow } from "@/lib/catalog";
 import { groupDaily } from "@/lib/history";
 import type { ActivityLog, DayTotals, FriendCardData, FriendPerms, FriendshipRow, Food, FoodLog, Meal, MealLog } from "@/lib/types";
 
@@ -28,18 +28,21 @@ export async function fetchGoalTotals(sb: SupabaseClient, from: string, to: stri
   }));
 }
 
-/** Searches one store's catalog by barcode or by typed words (each word must start a word of the name or brand). */
+/**
+ * Searches one store's catalog. A barcode is looked up by EAN. Typed words go to search_catalog(), which needs every
+ * word to match the name, brand or category (English food words also match their Spanish names) and lists
+ * products whose name matches before products that only match through their category.
+ */
 export async function searchCatalog(sb: SupabaseClient, store: string, typed: string): Promise<CatalogProduct[]> {
-  let q = sb.from("catalog_products").select(CATALOG_COLUMNS).eq("store", store);
-  if (/^\d{8,14}$/.test(typed)) q = q.eq("ean", typed);
+  let res;
+  if (/^\d{8,14}$/.test(typed)) res = await sb.from("catalog_products").select(CATALOG_COLUMNS).eq("store", store).eq("ean", typed).limit(20);
   else {
-    const stems = searchStems(typed);
-    if (stems.length === 0) return [];
-    for (const s of stems) q = q.ilike("search_text", `% ${s}%`);
+    const groups = searchGroups(typed);
+    if (groups.length === 0) return [];
+    res = await sb.rpc("search_catalog", { p_store: store, p_groups: groups }).select(CATALOG_COLUMNS);
   }
-  const { data, error } = await q.order("name").limit(80);
-  if (error) throw error;
-  return ((data ?? []) as unknown as CatalogRow[]).map(productFromRow);
+  if (res.error) throw res.error;
+  return ((res.data ?? []) as unknown as CatalogRow[]).map(productFromRow);
 }
 
 export async function fetchFoods(sb: SupabaseClient, userId: string): Promise<Food[]> {

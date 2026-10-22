@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Package, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { STORES, displayName, imageAt, plainWords, priceText, rankProducts, scaleProduct, type CatalogProduct, type PickedFood } from "@/lib/catalog";
+import { STORES, displayName, imageAt, plainWords, priceText, scaleProduct, type CatalogProduct, type PickedFood } from "@/lib/catalog";
 import { searchCatalog } from "@/lib/client/api";
 import { useSupabase } from "@/lib/client/hooks";
 import { cn, fmt } from "@/lib/utils";
@@ -78,10 +78,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
     return () => { stale = true; clearTimeout(t); };
   }, [text, store, nonce, sb]);
 
-  const visible = useMemo(() => {
-    const q = text.trim();
-    return /^\d+$/.test(q) ? items : rankProducts(q, items);
-  }, [items, text]);
+  const visible = items;
 
   const storeLabel = STORES.find((s) => s.id === store)?.label ?? "";
   const open = (p: CatalogProduct) => { setChosen(p); setAmount("100"); };
@@ -104,7 +101,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
           {!chosen && (<>
             <form onSubmit={(e) => { e.preventDefault(); instant.current = true; setNonce((n) => n + 1); }} className="relative">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Start typing, e.g. yogur natural" className="pl-10" aria-label="Search the catalog" autoFocus enterKeyHint="search" />
+              <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search, e.g. chicken breast or yogur" className="pl-10" aria-label="Search the catalog" autoFocus enterKeyHint="search" />
             </form>
             {STORES.length > 1 && (
               <div role="radiogroup" aria-label="Store" className="flex flex-wrap gap-2">
@@ -115,10 +112,10 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
               </div>
             )}
 
-            {status === "idle" && visible.length === 0 && <p className="px-1 text-sm text-muted">Type at least 3 letters and matching {storeLabel} products appear. You can also paste a barcode.</p>}
+            {status === "idle" && visible.length === 0 && <p className="px-1 text-sm text-muted">Type at least 3 letters, in English or Spanish, and matching {storeLabel} products appear. You can also paste a barcode.</p>}
             {status === "loading" && visible.length === 0 && <p className="px-1 text-sm text-muted">Searching…</p>}
             {status === "error" && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-            {status === "done" && visible.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">No matching {storeLabel} products. Try other words.</p>}
+            {status === "done" && visible.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">No matching {storeLabel} products. Try fewer or different words.</p>}
 
             {visible.length > 0 && (
               <ul className="overflow-hidden rounded-xl border border-line" aria-busy={status === "loading"}>
