@@ -3,9 +3,12 @@ import { cn } from "@/lib/utils";
 const base =
   "w-full rounded-xl border border-line bg-card2 px-4 text-fg placeholder:text-muted/70 outline-none transition focus:border-accent";
 
-export const Input = ({ className, ...p }: React.InputHTMLAttributes<HTMLInputElement>) => (
-  <input className={cn(base, "h-12", className)} {...p} />
-);
+export const Input = ({ className, type, ...p }: React.InputHTMLAttributes<HTMLInputElement>) => {
+  // Decimal number boxes are plain text boxes with the number keypad, so a comma can be typed as the decimal point
+  // on every phone and browser. The value is read with parseDecimal (lib/number.ts).
+  const decimal = type === "number" && p.inputMode === "decimal";
+  return <input className={cn(base, "h-12", className)} type={decimal ? "text" : type} autoComplete={decimal ? "off" : p.autoComplete} {...p} />;
+};
 export const Textarea = ({ className, ...p }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea className={cn(base, "py-3", className)} {...p} />
 );

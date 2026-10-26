@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useSaveActivity } from "@/lib/client/mutations";
 import { FormError, parseNum, parseText } from "@/lib/client/validate";
+import { parseDecimal } from "@/lib/number";
 import { configFor, estimateCardio, hasWeight, TREADMILL, treadmillDistanceKm } from "@/lib/cardio";
 import { ACTIVITY_PRESETS, CALORIE_SOURCES } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -42,14 +43,14 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
   const sent = useRef(false);
 
   const cfg = configFor(type);
-  const mins = Number(minutes);
+  const mins = parseDecimal(minutes);
   // On a treadmill the distance follows from speed and time until you type your own.
-  const autoDistance = cfg.estimate === "treadmill" && !distanceTouched ? treadmillDistanceKm(Number(speed), mins) : null;
+  const autoDistance = cfg.estimate === "treadmill" && !distanceTouched ? treadmillDistanceKm(parseDecimal(speed), mins) : null;
   const distanceValue = autoDistance !== null && autoDistance > 0 ? String(autoDistance) : distance;
 
   const estimate = estimateCardio({
-    type, minutes: mins, weightKg: profile.weight_kg, speed: Number(speed) || 0, incline: Number(incline) || 0,
-    distanceKm: cfg.distance.unit === "km" ? Number(distanceValue) || 0 : 0,
+    type, minutes: mins, weightKg: profile.weight_kg, speed: parseDecimal(speed) || 0, incline: parseDecimal(incline) || 0,
+    distanceKm: cfg.distance.unit === "km" ? parseDecimal(distanceValue) || 0 : 0,
   });
   const useCalc = auto && canCalc && estimate !== null;
   const calValue = useCalc ? String(estimate!.kcal) : cal;

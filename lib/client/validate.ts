@@ -1,3 +1,5 @@
+import { parseDecimal } from "@/lib/number";
+
 export class FormError extends Error {}
 
 /** Parses a number field. Blank is allowed (as 0) unless `required`. */
@@ -7,7 +9,7 @@ export function parseNum(raw: string, label: string, o: { min?: number; max?: nu
     if (required) throw new FormError(`Enter ${label}.`);
     return 0;
   }
-  const n = Number(raw);
+  const n = parseDecimal(raw); // a comma works as the decimal point
   if (!Number.isFinite(n)) throw new FormError(`Enter a valid number for ${label}.`);
   if (n < min) throw new FormError(`${label} must be at least ${min}.`);
   if (n > max) throw new FormError(`${label} must be at most ${max}.`);

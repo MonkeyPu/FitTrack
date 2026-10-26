@@ -1,12 +1,15 @@
 import { z } from "zod";
 import { ACTIVITY_PRESETS, CALORIE_SOURCES } from "@/lib/types";
 import { NUTRIENT_KEYS, type NutrientKey } from "@/lib/nutrition";
+import { normalizeDecimal } from "@/lib/number";
 
 const emptyToUndef = (v: unknown) => (v === "" || v === null ? undefined : v);
+/** For number fields: blank means "not set", and a comma works as the decimal point. */
+const numberInput = (v: unknown) => (typeof v === "string" ? (v.trim() === "" ? undefined : normalizeDecimal(v)) : emptyToUndef(v));
 
 export const reqNum = (min: number, max: number, label: string) =>
   z.preprocess(
-    emptyToUndef,
+    numberInput,
     z.coerce
       .number({ invalid_type_error: `Enter a valid ${label}` })
       .finite()
@@ -16,7 +19,7 @@ export const reqNum = (min: number, max: number, label: string) =>
 
 export const optNum = (min: number, max: number, label: string) =>
   z.preprocess(
-    emptyToUndef,
+    numberInput,
     z.coerce
       .number({ invalid_type_error: `Enter a valid ${label}` })
       .finite()

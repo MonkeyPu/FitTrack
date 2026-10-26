@@ -11,6 +11,7 @@ import { Field, Input, Textarea, Toggle } from "@/components/ui/field";
 import { useSaveEntry, type ItemInput } from "@/lib/client/mutations";
 import { FormError, parseNum, parseText } from "@/lib/client/validate";
 import { emptyNutrientStrings, NUTRIENT_KEYS, NUTRIENTS, readNutrients, sumItems, toNutrientStrings, type NutrientKey, type NutrientStrings } from "@/lib/nutrition";
+import { parseDecimal } from "@/lib/number";
 import { fmt } from "@/lib/utils";
 import type { Food } from "@/lib/types";
 
@@ -69,7 +70,7 @@ export function FoodForm({ quick, initial }: { quick?: boolean; initial?: EntryI
     } catch { /* ignore a bad or missing value */ }
   }, [initial, quick]);
 
-  const n = (s: string) => (Number.isFinite(Number(s)) && s !== "" ? Number(s) : 0);
+  const n = (s: string) => (s.trim() !== "" && Number.isFinite(parseDecimal(s)) ? parseDecimal(s) : 0);
   const preview = sumItems([main, ...extras].map((r) => ({ qty: n(r.qty), calories: n(r.cal), protein: n(r.protein), nutrients: Object.fromEntries(NUTRIENT_KEYS.map((k) => [k, n(r.nutrients[k])])) as never })));
   // With ingredients added, the food above is optional: leave it empty to log just the ingredients.
   const mainBlank = extras.length > 0 && !main.name.trim() && !main.cal.trim() && !main.protein.trim();

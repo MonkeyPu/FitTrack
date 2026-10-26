@@ -6,6 +6,7 @@ import { FormMessage, Warnings } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { parseDecimal } from "@/lib/number";
 import { ESTIMATE_NOTE, modeHint, targetWarnings } from "@/lib/safety";
 
 const STEPS = ["About you", "Maintenance", "Daily targets", "Your goal"];
@@ -21,7 +22,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
     goal_description: "", goal_personal_target: "", goal_start_date: "", goal_target_date: "",
   });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV((o) => ({ ...o, [k]: e.target.value }));
-  const num = (s: string) => (s === "" ? NaN : Number(s));
+  const num = (s: string) => (s.trim() === "" ? NaN : parseDecimal(s));
 
   function next() {
     setErr("");

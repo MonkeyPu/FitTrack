@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/field";
 import { CATALOGS, catalogLabel, displayName, imageAt, plainWords, priceText, scaleProduct, zoomImage, type CatalogProduct, type PickedFood } from "@/lib/catalog";
 import { searchSource } from "@/lib/client/api";
 import { useSupabase } from "@/lib/client/hooks";
+import { parseDecimal } from "@/lib/number";
 import { cn, fmt } from "@/lib/utils";
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -148,7 +149,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
   const showTag = sources.length > 1;
 
   const open = (p: CatalogProduct) => { setChosen(p); setAmount("100"); };
-  const amt = Number(amount) > 0 ? Number(amount) : 0;
+  const amt = parseDecimal(amount) > 0 ? parseDecimal(amount) : 0;
   const scaled = chosen ? scaleProduct(chosen, amt) : null;
   const sub = (p: CatalogProduct) => [showTag ? catalogLabel(p.store) : null, p.brand, p.quantity, priceText(p.price)].filter(Boolean).join(" · ") || p.code;
 
