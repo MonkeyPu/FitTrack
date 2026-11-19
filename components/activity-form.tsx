@@ -11,11 +11,13 @@ import { FormError, parseNum, parseText } from "@/lib/client/validate";
 import { parseDecimal } from "@/lib/number";
 import { configFor, estimateCardio, hasWeight, TREADMILL, treadmillDistanceKm } from "@/lib/cardio";
 import { ACTIVITY_PRESETS, CALORIE_SOURCES } from "@/lib/types";
+import { INTENSITIES, intensityOf, weightsKcal, weightsMinutes } from "@/lib/weights";
 import { cn } from "@/lib/utils";
 
 export type ActivityInitial = {
   id: string; date: string; name: string; type: string; duration: number; cal: number; source: string; notes: string; time: string;
   speed?: number | null; incline?: number | null; resistance?: number | null; distance?: number | null;
+  sets?: number | null; reps?: number | null; intensity?: string | null;
 };
 
 const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
@@ -34,6 +36,11 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
   const [resistance, setResistance] = useState(str(initial?.resistance));
   const [distance, setDistance] = useState(str(initial?.distance));
   const [distanceTouched, setDistanceTouched] = useState(initial?.distance != null);
+  const [sets, setSets] = useState(str(initial?.sets));
+  const [reps, setReps] = useState(str(initial?.reps));
+  const [intensity, setIntensity] = useState(initial?.intensity ?? "medium");
+  // For weights the duration follows from the sets and reps until you type your own.
+  const [minutesTouched, setMinutesTouched] = useState(initial != null);
   const [cal, setCal] = useState(initial ? String(initial.cal) : "");
   const [source, setSource] = useState(initial?.source ?? "manual");
   // New entries start on the calculated value. Existing ones keep what was saved unless they were calculated too.
@@ -43,15 +50,21 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
   const sent = useRef(false);
 
   const cfg = configFor(type);
-  const mins = parseDecimal(minutes);
+  const isWeights = cfg.estimate === "weights";
+  const workedMinutes = isWeights ? weightsMinutes(parseDecimal(sets), parseDecimal(reps), intensity) : null;
+  const minutesValue = isWeights && !minutesTouched && workedMinutes !== null ? String(workedMinutes) : minutes;
+  const mins = parseDecimal(minutesValue);
   // On a treadmill the distance follows from speed and time until you type your own.
   const autoDistance = cfg.estimate === "treadmill" && !distanceTouched ? treadmillDistanceKm(parseDecimal(speed), mins) : null;
   const distanceValue = autoDistance !== null && autoDistance > 0 ? String(autoDistance) : distance;
 
-  const estimate = estimateCardio({
-    type, minutes: mins, weightKg: profile.weight_kg, speed: parseDecimal(speed) || 0, incline: parseDecimal(incline) || 0,
-    distanceKm: cfg.distance.unit === "km" ? parseDecimal(distanceValue) || 0 : 0,
-  });
+  const weightsEstimate = isWeights ? weightsKcal({ sets: parseDecimal(sets), reps: parseDecimal(reps), intensity, weightKg: profile.weight_kg, minutes: minutesTouched ? mins : undefined }) : null;
+  const estimate: { kcal: number; method: "treadmill" | "cycling" | "weights" } | null = isWeights
+    ? (weightsEstimate ? { kcal: weightsEstimate.kcal, method: "weights" } : null)
+    : estimateCardio({
+      type, minutes: mins, weightKg: profile.weight_kg, speed: parseDecimal(speed) || 0, incline: parseDecimal(incline) || 0,
+      distanceKm: cfg.distance.unit === "km" ? parseDecimal(distanceValue) || 0 : 0,
+    });
   const useCalc = auto && canCalc && estimate !== null;
   const calValue = useCalc ? String(estimate!.kcal) : cal;
   // A hand-typed number is never labelled "calculated".
@@ -61,6 +74,7 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
     setType(t);
     setName(label);
     setAuto(true);
+    if (t === "weights" && !initial) setMinutesTouched(false);
   }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -76,12 +90,15 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
       const spd = cfg.speed ? opt(speed, "speed", cfg.speed) : null;
       const inc = cfg.incline ? opt(incline, "incline", cfg.incline) : null;
       const res = cfg.resistance ? opt(resistance, "resistance", cfg.resistance) : null;
-      const dist = opt(distanceValue, "distance");
+      const dist = isWeights ? null : opt(distanceValue, "distance");
       sent.current = true;
       save.mutate({
         id: initial?.id, oldDate: initial?.date, date, loggedAt, type, source: sourceValue,
         name: parseText(name, "activity name", 60, true),
-        minutes: parseNum(minutes, "duration", { min: 1, max: 1440, required: true, int: true }),
+        sets: isWeights ? parseNum(sets, "sets", { min: 1, max: 100, required: true, int: true }) : null,
+        reps: isWeights ? parseNum(reps, "reps per set", { min: 1, max: 200, required: true, int: true }) : null,
+        intensity: isWeights ? intensity : null,
+        minutes: parseNum(minutesValue, "duration", { min: 1, max: 1440, required: true, int: true }),
         calories: parseNum(calValue, "calories burned", { max: 10000, required: true }),
         notes: parseText(notes, "notes", 500) || null,
         speed: spd, incline: inc, resistance: res, distance: dist, distanceUnit: dist === null ? null : cfg.distance.unit,
@@ -107,11 +124,32 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
       </div>
       <Field label="Activity name"><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} /></Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Duration (minutes)">{num({ inputMode: "numeric", min: 1, max: 1440, step: 1, value: minutes, onChange: (e) => setMinutes(e.target.value), placeholder: "min" })}</Field>
-        <Field label={`${cfg.distance.label} (${cfg.distance.unitLabel})`}>
-          {num({ min: 0, step: "any", value: distanceValue, onChange: (e) => { setDistanceTouched(true); setDistance(e.target.value); }, placeholder: cfg.distance.unitLabel })}
+      {isWeights && (<>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Sets">{num({ inputMode: "numeric", min: 1, max: 100, step: 1, value: sets, onChange: (e) => setSets(e.target.value), placeholder: "e.g. 4" })}</Field>
+          <Field label="Reps per set">{num({ inputMode: "numeric", min: 1, max: 200, step: 1, value: reps, onChange: (e) => setReps(e.target.value), placeholder: "e.g. 10" })}</Field>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium text-muted">Workout intensity</p>
+          <div role="radiogroup" aria-label="Workout intensity" className="grid grid-cols-3 gap-2">
+            {INTENSITIES.map((i) => (
+              <button key={i.value} type="button" role="radio" aria-checked={intensity === i.value} onClick={() => { setIntensity(i.value); setAuto(true); }}
+                className={cn("min-h-12 rounded-xl border px-2 text-sm font-medium transition", intensity === i.value ? "border-accent bg-accent/10 text-accent" : "border-line bg-card text-fg")}>{i.label}</button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">{intensityOf(intensity)?.hint}</p>
+        </div>
+      </>)}
+
+      <div className={isWeights ? "" : "grid grid-cols-2 gap-3"}>
+        <Field label="Duration (minutes)" hint={isWeights && !minutesTouched ? "Worked out from your sets, reps and rests. Change it if your workout took longer or shorter." : undefined}>
+          {num({ inputMode: "numeric", min: 1, max: 1440, step: 1, value: minutesValue, onChange: (e) => { setMinutesTouched(true); setMinutes(e.target.value); }, placeholder: "min" })}
         </Field>
+        {!isWeights && (
+          <Field label={`${cfg.distance.label} (${cfg.distance.unitLabel})`}>
+            {num({ min: 0, step: "any", value: distanceValue, onChange: (e) => { setDistanceTouched(true); setDistance(e.target.value); }, placeholder: cfg.distance.unitLabel })}
+          </Field>
+        )}
       </div>
 
       {(cfg.speed || cfg.incline || cfg.resistance) && (
@@ -133,7 +171,9 @@ export function ActivityForm({ initial }: { initial?: ActivityInitial }) {
         <p className="text-xs text-muted">
           {estimate!.method === "treadmill"
             ? "Worked out from your weight, speed, incline and time. It counts only the calories above what you'd burn resting anyway. Type your own number to override it."
-            : "A rough figure from your weight and average speed. It doesn't use the resistance level. Type your own number to override it."}
+            : estimate!.method === "weights"
+              ? "A rough figure from your weight, the sets and reps (about 3 seconds a rep plus rests) and how hard you lift. It counts only the calories above what you'd burn resting anyway, and not the extra burn after a workout. It doesn't know how much weight you lift. Type your own number to override it."
+              : "A rough figure from your weight and average speed. It doesn't use the resistance level. Type your own number to override it."}
         </p>
       ) : (
         <>

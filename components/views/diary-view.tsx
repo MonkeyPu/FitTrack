@@ -45,7 +45,7 @@ export function DiaryView() {
           {meals.length === 0 ? <p className="px-4 py-4 text-sm text-muted">No food logged.</p> : meals.map((e) => (e.kind === "food" ? <FoodEntry key={e.log.id} log={e.log} tz={tz} /> : <MealEntry key={e.log.id} log={e.log} tz={tz} />))}
         </Card>
       </Section>
-      <Section title="Exercise" action={add("/add/cardio", "Add cardio")}>
+      <Section title="Exercise" action={add("/add/cardio", "Add burnt calories")}>
         <Card className="px-0 py-1">{day.data.activities.length === 0 ? <p className="px-4 py-4 text-sm text-muted">No exercise logged. Calories burned are estimates.</p> : day.data.activities.map((l) => <ActivityEntry key={l.id} log={l} tz={tz} />)}</Card>
       </Section>
     </>

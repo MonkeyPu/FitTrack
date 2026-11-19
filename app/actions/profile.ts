@@ -117,7 +117,7 @@ export async function updateBodyStats(_: State, fd: FormData): Promise<State> {
     .eq("id", user.id);
   if (error) return { error: SAVE_FAILED };
   revalidatePath("/", "layout");
-  return { ok: true, message: v.weight_kg ? "Saved. Cardio calories will be calculated for you." : "Saved. Add your weight to calculate cardio calories." };
+  return { ok: true, message: v.weight_kg ? "Saved. Calories burned will be calculated for you." : "Saved. Add your weight to calculate calories burned." };
 }
 
 export async function updateNutrientGoals(_: State, fd: FormData): Promise<State> {

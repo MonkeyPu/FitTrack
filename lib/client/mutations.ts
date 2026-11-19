@@ -8,6 +8,7 @@ import { qk } from "@/lib/client/keys";
 import { FormError } from "@/lib/client/validate";
 import { nutrientColumns, readNutrients, sumItems, totalColumns, type Nutrients } from "@/lib/nutrition";
 import type { ActivityLog, Food, FoodLog, FriendPerms, FriendshipRow, Meal, MealLog, FriendOrder } from "@/lib/types";
+import type { RecipeItem } from "@/lib/recipe";
 
 class AppError extends Error {}
 
@@ -236,6 +237,7 @@ export type ActivityInput = {
   id?: string; oldDate?: string; date: string; loggedAt: string; name: string; type: string;
   minutes: number; calories: number; source: string; notes: string | null;
   speed: number | null; incline: number | null; resistance: number | null; distance: number | null; distanceUnit: "km" | "m" | "floors" | null;
+  sets: number | null; reps: number | null; intensity: string | null;
 };
 
 export function useSaveActivity() {
@@ -252,6 +254,7 @@ export function useSaveActivity() {
         activity_name: a.name, activity_type: a.type, duration_minutes: Math.round(a.minutes), calories_burned: a.calories,
         calorie_source: a.source, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
         speed: a.speed, incline_pct: a.incline, resistance: a.resistance, distance: a.distance, distance_unit: a.distanceUnit,
+        sets: a.sets, reps_per_set: a.reps, intensity: a.intensity,
       };
       const { error } = a.id
         ? await sb.from("activity_logs").update(row).eq("id", a.id)
@@ -265,6 +268,7 @@ export function useSaveActivity() {
         id: a.id ?? tmpId(), activity_name: a.name, activity_type: a.type, duration_minutes: Math.round(a.minutes),
         calories_burned: a.calories, calorie_source: a.source, notes: a.notes, logged_at: a.loggedAt, log_date: a.date,
         speed: a.speed, incline_pct: a.incline, resistance: a.resistance, distance: a.distance, distance_unit: a.distanceUnit,
+        sets: a.sets, reps_per_set: a.reps, intensity: a.intensity,
       } as ActivityLog;
       cache.patch(a.date, (d) => ({ ...d, activities: byTime([...d.activities.filter((x) => x.id !== entry.id), entry]) }));
       return { snap };
@@ -320,6 +324,69 @@ export function useDeleteFood() {
     },
     onError: (e, _v, ctx) => { qc.setQueryData(qk.foods, ctx?.prev); toast(messageOf(e)); },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.foods }),
+  });
+}
+
+/* ───────────── recipes ───────────── */
+
+export type RecipeInput = { id?: string; name: string; items: RecipeItem[] };
+
+/** Saves a recipe: its name and a copy of every ingredient's values with the amount used. */
+export function useSaveRecipe() {
+  const sb = useSupabase();
+  const qc = useQueryClient();
+  const { userId } = useApp();
+  return useMutation({
+    networkMode: "always",
+    mutationFn: async (r: RecipeInput) => {
+      assertOnline();
+      const itemRows = (mealId: string) => r.items.map((i) => ({
+        meal_id: mealId, user_id: userId, food_id: i.food_id, food_name_snapshot: i.name, serving_description_snapshot: i.serving,
+        serving_quantity: i.qty, calories_per_serving_snapshot: i.calories, protein_per_serving_snapshot: i.protein,
+        ...nutrientColumns(i.nutrients, "_per_serving_snapshot"),
+      }));
+      if (r.id) {
+        const { data: old } = await sb.from("meal_items").select("id").eq("meal_id", r.id);
+        const { error } = await sb.from("meals").update({ name: r.name }).eq("id", r.id);
+        if (error) throw error;
+        const { error: insErr } = await sb.from("meal_items").insert(itemRows(r.id));
+        if (insErr) throw insErr;
+        if (old?.length) await sb.from("meal_items").delete().in("id", old.map((x) => x.id));
+        return r.id;
+      }
+      const { data, error } = await sb.from("meals").insert({ user_id: userId, name: r.name }).select("id").single();
+      if (error || !data) throw error ?? new Error("insert failed");
+      const { error: itemsErr } = await sb.from("meal_items").insert(itemRows(data.id));
+      if (itemsErr) {
+        await sb.from("meals").delete().eq("id", data.id);
+        throw itemsErr;
+      }
+      return data.id as string;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.recipes }),
+  });
+}
+
+export function useDeleteRecipe() {
+  const sb = useSupabase();
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    networkMode: "always",
+    mutationFn: async (id: string) => {
+      assertOnline();
+      // Diary entries keep their own copy of the values, so history is unaffected.
+      const { error } = await sb.from("meals").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: qk.recipes });
+      const prev = qc.getQueryData<Meal[]>(qk.recipes);
+      qc.setQueryData<Meal[]>(qk.recipes, (l) => l?.filter((m) => m.id !== id));
+      return { prev };
+    },
+    onError: (e, _v, ctx) => { qc.setQueryData(qk.recipes, ctx?.prev); toast(messageOf(e)); },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.recipes }),
   });
 }
 

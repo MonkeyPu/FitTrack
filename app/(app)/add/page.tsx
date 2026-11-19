@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Dumbbell, Library, PenLine, Store, Utensils } from "lucide-react";
+import { ChefHat, Flame, Library, PenLine, Store, Utensils } from "lucide-react";
 
 export const metadata = { title: "Add" };
 
 const items = [
   { href: "/add/food", icon: Utensils, title: "Log food", sub: "Enter a food and add your saved ingredients" },
-  { href: "/add/cardio", icon: Dumbbell, title: "Log cardio", sub: "Walking, running, cycling and more" },
+  { href: "/add/recipes", icon: ChefHat, title: "Recipes", sub: "Combine ingredients, then scale the amounts when you log" },
+  { href: "/add/cardio", icon: Flame, title: "Add burnt calories", sub: "Weight lifting, running, cycling and more" },
   { href: "/add/catalog", icon: Store, title: "Supermarket catalog", sub: "Find Mercadona products" },
   { href: "/add/food?quick=1", icon: PenLine, title: "Add calories", sub: "Quickly add a number without naming a food" },
 ];

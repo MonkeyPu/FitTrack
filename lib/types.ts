@@ -116,18 +116,23 @@ export type ActivityLog = {
   resistance: number | null;
   distance: number | null;
   distance_unit: "km" | "m" | "floors" | null;
+  /** weight lifting only */
+  sets: number | null;
+  reps_per_set: number | null;
+  intensity: "light" | "medium" | "heavy" | null;
   notes: string | null;
   logged_at: string;
   log_date: string;
 };
 
 export const ACTIVITY_PRESETS = [
+  { type: "weights", name: "Weight lifting" },
   { type: "running", name: "Running" },
   { type: "walking", name: "Walking" },
   { type: "cycling", name: "Cycling" },
   { type: "swimming", name: "Swimming" },
   { type: "stair_climbing", name: "Stair climbing" },
-  { type: "other_cardio", name: "Other cardio" },
+  { type: "other_cardio", name: "Other" },
 ] as const;
 
 export const CALORIE_SOURCES = [

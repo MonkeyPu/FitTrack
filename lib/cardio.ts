@@ -1,3 +1,5 @@
+import { weightsSummary } from "./weights";
+
 /**
  * Cardio settings and calorie estimates.
  *
@@ -25,11 +27,12 @@ export type ActivityConfig = {
   incline?: NumField;
   resistance?: NumField;
   distance: { label: string; unit: DistanceUnit; unitLabel: string };
-  /** how calories can be worked out; null means type them in */
-  estimate: "treadmill" | "cycling" | null;
+  /** how calories can be worked out; null means type them in. "weights" is worked out in lib/weights.ts. */
+  estimate: "treadmill" | "cycling" | "weights" | null;
 };
 
 export const ACTIVITY_CONFIG: Record<string, ActivityConfig> = {
+  weights: { distance: { label: "Distance", unit: "km", unitLabel: "km" }, estimate: "weights" }, // distance is not asked for
   walking: {
     speed: { label: "Speed", unit: "km/h", min: TREADMILL.speedMin, max: TREADMILL.speedMax, step: TREADMILL.speedStep },
     incline: { label: "Incline", unit: "%", min: TREADMILL.inclineMin, max: TREADMILL.inclineMax, step: TREADMILL.inclineStep },
@@ -113,7 +116,8 @@ export function estimateCardio(o: { type: string; minutes: number; weightKg: num
 export const treadmillDistanceKm = (speedKmh: number, minutes: number) => (ok(speedKmh) && ok(minutes) ? Math.round(((speedKmh * minutes) / 60) * 100) / 100 : 0);
 
 /** One-line summary of a logged activity's settings, e.g. "5.5 km/h · 7.5% incline · 2.75 km". */
-export function settingsSummary(a: { activity_type: string; speed: number | null; incline_pct: number | null; resistance: number | null; distance: number | null; distance_unit: string | null }): string {
+export function settingsSummary(a: { activity_type: string; speed: number | null; incline_pct: number | null; resistance: number | null; distance: number | null; distance_unit: string | null; sets?: number | null; reps_per_set?: number | null; intensity?: string | null }): string {
+  if (a.activity_type === "weights") return weightsSummary(a);
   const cfg = configFor(a.activity_type);
   const bits: string[] = [];
   if (a.speed != null && cfg.speed) bits.push(`${Number(a.speed)} ${cfg.speed.unit}`);
