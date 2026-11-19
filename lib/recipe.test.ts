@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { amountAt, baseAmount, factorFor, formatAmount, itemFromPicked, itemsFromMeal, recipeTotals, scaledItems, servingUnit, type RecipeItem } from "./recipe";
+import { amountAt, baseAmount, factorFor, formatAmount, itemsFromMeal, recipeTotals, scaledItems, servingUnit, type RecipeItem } from "./recipe";
 import { zeroNutrients } from "./nutrition";
 
 const item = (o: Partial<RecipeItem>): RecipeItem => ({ food_id: null, name: "x", serving: "100 g", qty: 1, calories: 100, protein: 10, nutrients: zeroNutrients(), ...o });
@@ -77,24 +77,5 @@ describe("itemsFromMeal", () => {
     const [r] = itemsFromMeal(meal as never);
     expect(r).toMatchObject({ name: "Rice", serving: "100 g", qty: 1.5, calories: 130, protein: 2.7 });
     expect(r.nutrients.carbs).toBe(28);
-  });
-});
-
-describe("itemFromPicked", () => {
-  it("turns a catalog product into an ingredient measured in grams", () => {
-    const n = { ...zeroNutrients(), carbs: 30, fat: 1.5 };
-    const { item, amount } = itemFromPicked({
-      code: "1", name: "Arroz", serving: "150 g", calories: 195, protein: 4.05, nutrients: n, amount: 150, unit: "g",
-      per100: { calories: 130, protein: 2.7, nutrients: n },
-    });
-    expect(amount).toBe(150);
-    expect(item).toMatchObject({ food_id: null, name: "Arroz", serving: "100 g", qty: 1.5, calories: 130, protein: 2.7 });
-    expect(baseAmount(item)).toBe(150); // shown as 150 g in the recipe
-    expect(factorFor([item], 0, 300)).toBe(2);
-  });
-  it("works for liquids", () => {
-    const { item } = itemFromPicked({ code: "2", name: "Leche", serving: "250 ml", calories: 115, protein: 8.5, nutrients: zeroNutrients(), amount: 250, unit: "ml", per100: { calories: 46, protein: 3.4, nutrients: zeroNutrients() } });
-    expect(servingUnit(item.serving)).toEqual({ per: 100, unit: "ml" });
-    expect(baseAmount(item)).toBe(250);
   });
 });
