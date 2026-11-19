@@ -108,4 +108,4 @@ export function RecipeForm({ recipe }: { recipe?: Meal }) {
       {picking && <IngredientSheet onPick={add} onClose={() => setPicking(false)} />}
     </>
   );
-                                                                                            }
+}
