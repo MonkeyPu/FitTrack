@@ -241,7 +241,7 @@ export function CatalogPicker({ onPick, onClose, initialQuery = "", inline = fal
               <p className="num mt-1 text-sm text-muted">Carbs {fmt(scaled.nutrients.carbs, 1)} · Sugar {fmt(scaled.nutrients.sugar, 1)} · Fat {fmt(scaled.nutrients.fat, 1)} g</p>
             </div>
             {chosen.warnings.map((w) => <p key={w} className="rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">{w}</p>)}
-            <Button type="button" className="w-full" disabled={amt <= 0} onClick={() => onPick({ code: chosen.code, name: displayName(chosen), serving: `${fmt(amt, 2)} ${chosen.unit}`, ...scaled, amount: amt, unit: chosen.unit, per100: chosen.per100 })}>Use this food</Button>
+            <Button type="button" className="w-full" disabled={amt <= 0} onClick={() => onPick({ code: chosen.code, name: displayName(chosen), serving: `${fmt(amt, 2)} ${chosen.unit}`, ...scaled })}>Use this food</Button>
           </>)}
 
           <p className="pb-1 text-center text-xs text-muted">
