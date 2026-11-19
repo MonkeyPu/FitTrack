@@ -1,5 +1,6 @@
 import { readNutrients, sumItems, type Nutrients } from "./nutrition";
 import { parseDecimal } from "./number";
+import type { PickedFood } from "./catalog";
 import type { Meal } from "./types";
 
 /**
@@ -61,3 +62,14 @@ export function itemsFromMeal(meal: Meal): RecipeItem[] {
     nutrients: readNutrients(i as unknown as Record<string, unknown>, "_per_serving_snapshot"),
   }));
 }
+
+/**
+ * A supermarket product picked in the catalog becomes an ingredient whose serving is 100 g (or 100 ml), so its
+ * amount can be changed freely. `amount` is how much was picked, in grams or millilitres.
+ */
+export function itemFromPicked(p: PickedFood): { item: RecipeItem; amount: number } {
+  return {
+    item: { food_id: null, name: p.name, serving: `100 ${p.unit}`, qty: p.amount / 100, calories: p.per100.calories, protein: p.per100.protein, nutrients: p.per100.nutrients },
+    amount: p.amount,
+  };
+  }
