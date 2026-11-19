@@ -46,7 +46,14 @@ export type CatalogProduct = {
   warnings: string[];
 };
 
-export type PickedFood = { code: string; name: string; serving: string; calories: number; protein: number; nutrients: Nutrients };
+/** A product chosen in the catalog: the values for the amount picked, and the per 100 values they came from. */
+export type PickedFood = {
+  code: string; name: string; serving: string; calories: number; protein: number; nutrients: Nutrients;
+  /** the amount picked, in `unit` */
+  amount: number;
+  unit: "g" | "ml";
+  per100: { calories: number; protein: number; nutrients: Nutrients };
+};
 
 const num = (v: unknown): number | null => {
   if (v === null || v === undefined || v === "") return null;
@@ -265,4 +272,4 @@ export function spanishWords(typed: string): string {
 export function matchesGroups(groups: string[], name: string, brand?: string | null): boolean {
   const shown = tokens(`${name} ${brand ?? ""}`);
   return groups.every((g) => g.split("|").some((a) => a !== "" && (a.endsWith("$") ? shown.includes(a.slice(0, -1)) : shown.some((t) => t.startsWith(a)))));
-}
+    }
