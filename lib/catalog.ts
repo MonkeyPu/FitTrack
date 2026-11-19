@@ -265,4 +265,4 @@ export function spanishWords(typed: string): string {
 export function matchesGroups(groups: string[], name: string, brand?: string | null): boolean {
   const shown = tokens(`${name} ${brand ?? ""}`);
   return groups.every((g) => g.split("|").some((a) => a !== "" && (a.endsWith("$") ? shown.includes(a.slice(0, -1)) : shown.some((t) => t.startsWith(a)))));
-      }
+}
