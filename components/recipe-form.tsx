@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { Plus, ShoppingCart, X } from "lucide-react";
+import { CatalogPicker } from "@/components/catalog-picker";
 import { IngredientSheet } from "@/components/ingredient-sheet";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
@@ -9,7 +10,8 @@ import { useSaveRecipe } from "@/lib/client/mutations";
 import { FormError, parseText } from "@/lib/client/validate";
 import { parseDecimal } from "@/lib/number";
 import { readNutrients, sumItems } from "@/lib/nutrition";
-import { baseAmount, formatAmount, itemsFromMeal, servingUnit, type RecipeItem } from "@/lib/recipe";
+import type { PickedFood } from "@/lib/catalog";
+import { baseAmount, formatAmount, itemFromPicked, itemsFromMeal, servingUnit, type RecipeItem } from "@/lib/recipe";
 import type { Food, Meal } from "@/lib/types";
 import { fmt } from "@/lib/utils";
 
@@ -25,6 +27,7 @@ export function RecipeForm({ recipe }: { recipe?: Meal }) {
   const [name, setName] = useState(recipe?.name ?? "");
   const [rows, setRows] = useState<Row[]>(() => (recipe ? itemsFromMeal(recipe).map((item) => ({ key: newKey(), item, amount: formatAmount(baseAmount(item)) })) : []));
   const [picking, setPicking] = useState(false);
+  const [pickingCatalog, setPickingCatalog] = useState(false);
   const [error, setError] = useState("");
 
   const add = (f: Food) => {
@@ -34,6 +37,13 @@ export function RecipeForm({ recipe }: { recipe?: Meal }) {
     };
     setRows((l) => [...l, { key: newKey(), item, amount: formatAmount(servingUnit(f.serving_description).per) }]);
     setPicking(false);
+  };
+
+  /** A supermarket product from the catalog (search or barcode) joins the recipe with the amount picked. */
+  const addCatalog = (p: PickedFood) => {
+    const { item, amount } = itemFromPicked(p);
+    setRows((l) => [...l, { key: newKey(), item, amount: formatAmount(amount) }]);
+    setPickingCatalog(false);
   };
 
   /** One serving of the ingredient times how many servings the typed amount is. */
@@ -70,7 +80,7 @@ export function RecipeForm({ recipe }: { recipe?: Meal }) {
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted">Ingredients and amounts</p>
-          {rows.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">Add the ingredients, then set how much of each the recipe uses. When you log it you can change any one of them and the rest follow.</p>}
+          {rows.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">Add ingredients from your own list or the supermarket catalog (search or scan a barcode), then set how much of each the recipe uses. When you log it you can change any one of them and the rest follow.</p>}
           <ul className="space-y-2">
             {rows.map((r) => {
               const { unit } = servingUnit(r.item.serving);
@@ -90,7 +100,10 @@ export function RecipeForm({ recipe }: { recipe?: Meal }) {
               );
             })}
           </ul>
-          <Button type="button" variant="secondary" className="w-full" onClick={() => setPicking(true)}><Plus className="h-4 w-4" />Add ingredient</Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="secondary" onClick={() => setPicking(true)}><Plus className="h-4 w-4" />My ingredients</Button>
+            <Button type="button" variant="secondary" onClick={() => setPickingCatalog(true)}><ShoppingCart className="h-4 w-4" />Supermarket</Button>
+          </div>
         </div>
 
         {rows.length > 0 && (
@@ -104,8 +117,9 @@ export function RecipeForm({ recipe }: { recipe?: Meal }) {
         {error && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
         <Button type="submit" className="w-full" disabled={save.isPending}>{save.isPending ? "Saving…" : recipe ? "Save changes" : "Save recipe"}</Button>
       </form>
-      {/* Outside the form: the sheet has a form of its own for creating a new ingredient. */}
+      {/* Outside the form: the sheets have forms of their own (new ingredient, catalog search). */}
       {picking && <IngredientSheet onPick={add} onClose={() => setPicking(false)} />}
+      {pickingCatalog && <CatalogPicker onPick={addCatalog} onClose={() => setPickingCatalog(false)} />}
     </>
   );
 }
